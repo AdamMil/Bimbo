@@ -274,7 +274,7 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
         }
         GameLib.Mathematics.TwoD.Polygon cpoly = new GameLib.Mathematics.TwoD.Polygon();
         foreach(List pt in child["points"]) cpoly.AddPoint(pt.ToPoint());
-        foreach(GameLib.Mathematics.TwoD.Polygon p in cpoly.SplitIntoConvexPolygons())
+        foreach(GameLib.Mathematics.TwoD.Polygon p in cpoly.Split())
         { if(!p.IsClockwise()) p.Reverse();
           Polygon poly = new Polygon(type, p);
           SD.Rectangle brect = WorldToPart(poly.Poly.GetBounds()); // TODO: maybe replace next 3 lines with foreach, using iterator??
