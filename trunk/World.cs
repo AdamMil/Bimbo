@@ -38,6 +38,14 @@ public class World
   public const int MaxTiles=32*1024*1024/BlockWidth/BlockHeight/4; // TODO: 32 meg tile cache -- make this dynamic
 
   public enum PolyType { Solid, Water };
+  
+  public struct LinePolyIntersection
+  { public Point  IP;
+    public Line   Line;
+    public Vector Normal;
+    public float  DistSqr;
+  }
+
   public class Polygon
   { public Polygon(PolyType type, GameLib.Mathematics.TwoD.Polygon poly) { this.type=type; Poly=poly; }
 
@@ -67,38 +75,53 @@ public class World
 
     // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
     // if no collision occurred
-    public Point Intersection(Line line, float size)
-    { if(!line.Intersects(Bounds.Inflated(size, size))) return Point.Invalid;
+    public bool Intersection(Line line, float size, out LinePolyIntersection lpi)
+    { if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit;
 
-      const float epsilon = 0.001f;
+      const float epsilon = 0.001f; // FIXME: way too big!
 
       unsafe
       { Line* lines = stackalloc Line[poly.Length];
         float* sdists = stackalloc float[poly.Length];
+        float* edists = stackalloc float[poly.Length];
         Point end = line.End, ip = new Point();
         float mind = float.MaxValue;
-        int mini = -1;
-        for(int i=0; i<poly.Length; i++)
+        int mini = -1, len=poly.Length;
+        for(int i=0; i<len; i++)
         { lines[i] = GetInflatedEdge(i, size); // inflate the polygon by 'size'
           sdists[i] = lines[i].WhichSide(line.Start);
+          edists[i] = lines[i].WhichSide(end);
         }
-        for(int i=0; i<poly.Length; i++)
-        { float sd = sdists[i], ed = lines[i].WhichSide(end);
+        for(int i=0; i<len; i++)
+        { float sd = sdists[i], ed = edists[i];
           if(sd<epsilon && sd>-epsilon) // we might already be touching it
-          { for(int j=0; j<poly.Length; j++) if(j!=i && sdists[i]>=epsilon) goto nope;
-            return line.Start;
+          { for(int j=0; j<len; j++) if(j!=i && sdists[j]>=epsilon) goto nope;
+            for(int j=0; j<len; j++) if(edists[j]>-epsilon) goto nothit; // FIXNOW: this isn't good enough
+            lpi.IP   = line.Start;
+            lpi.Line = lines[i];
+            lpi.Normal = normals[i];
+            lpi.DistSqr = 0;
+            return true;
           }
           nope:
           if(sd>=epsilon && ed<=-epsilon) // 'line' straddles a clipping line
-          { ip = line.Intersection(lines[i]);
+          { ip = line.LineIntersection(lines[i]);
             float dist = ip.DistanceSquaredTo(line.Start);
             if(dist<mind) { mini=i; mind=dist; }
           }
         }
-        if(mini==-1) return Point.Invalid;
-        for(int i=0; i<poly.Length; i++) if(i!=mini && lines[i].WhichSide(ip)>0) return Point.Invalid;
-        return ip;
+        if(mini==-1) goto nothit;
+        for(int i=0; i<len; i++) if(i!=mini && lines[i].WhichSide(ip)>0) goto nothit;
+        lpi.IP      = ip;
+        lpi.Line    = lines[mini];
+        lpi.Normal  = normals[mini];
+        lpi.DistSqr = mind;
+        return true;
       }
+      
+      nothit:
+      unsafe { fixed(LinePolyIntersection* p=&lpi) { } } // pacify the compiler (no, we didn't assign to lpi)
+      return false;
     }
 
     public void Update() // precalculate the bounding box and the edge normals

@@ -75,9 +75,12 @@ public abstract class BimboObject
     if(cons==null)
       throw new ArgumentException(string.Format("The object '{0}' does not implement a deserializing constructor.",
                                                 name));
-    BimboObject obj = (BimboObject)cons.Invoke(new object[] { list });
-    obj.world = world;
-    return obj;
+    try
+    { BimboObject obj = (BimboObject)cons.Invoke(new object[] { list });
+      obj.world = world;
+      return obj;
+    }
+    catch(TargetInvocationException e) { throw e.InnerException; }
   }
 
   internal System.Drawing.Point PartCoords;
