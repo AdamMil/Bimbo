@@ -27,25 +27,20 @@ using GameLib.Video;
 namespace Bimbo
 {
 
-public class World
-{ public SD.Color BackColor { get { return bgColor; } }
+public sealed class World
+{ internal World() { }
+  public SD.Color BackColor { get { return bgColor; } }
   public Camera Camera { get { return cam; } }
   public string Name { get { return levelName; } }
   public float TimeDelta { get { return timeDelta; } }
 
-  // TODO: add support for rotation and object tracking (?)
-
   public void Load(string path)
-  { path = path.Replace('\\', '/');
-    if(path[path.Length-1] != '/') path += '/';
-
+  { path = GameLib.Utility.NormalizeDir(path);
     Load(path, new List(System.IO.File.Open(path+"definition", System.IO.FileMode.Open, System.IO.FileAccess.Read)));
   }
 
   public void Load(string path, List list)
-  { path = path.Replace('\\', '/');
-    if(path[path.Length-1] != '/') path += '/';
-
+  { path = GameLib.Utility.NormalizeDir(path);
     Unload();
     foreach(List child in list)
       if(child.Name=="polygon")
@@ -101,10 +96,9 @@ public class World
     basePath = path;
   }
 
-  public void Render(SD.Size screenSize)
-  { SD.Point topLeft = new SD.Point((int)Math.Round(cam.Current.X)-screenSize.Width/2,
-                                    (int)Math.Round(cam.Current.Y)-screenSize.Height/2);
-    SD.Rectangle parts = WorldToPart(new Rectangle(topLeft.X, topLeft.Y, screenSize.Width, screenSize.Height));
+  public void Render()
+  { SD.Point topLeft = Camera.TopLeft;
+    SD.Rectangle parts = WorldToPart(new Rectangle(topLeft.X, topLeft.Y, Engine.ScreenSize.Width, Engine.ScreenSize.Height));
 
     int yo, xo, pxo, pyo=parts.Y*PartHeight - topLeft.Y;
     for(int y=parts.Y; y<parts.Bottom; pyo+=PartHeight,y++)
@@ -151,7 +145,7 @@ public class World
             for(; part.ObjIndex<objs.Count; part.ObjIndex++)
             { BimboObject obj = (BimboObject)objs[part.ObjIndex];
               if(obj.Layer!=layer) goto doneWithObjs;
-              obj.Render(cam);
+              obj.Render(this);
             }
           doneWithObjs:;
         }

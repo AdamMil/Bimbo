@@ -43,7 +43,7 @@ public abstract class BimboObject
     }
   }
 
-  public abstract void Render(Camera camera);
+  public abstract void Render(World world);
   public abstract void Update(World world);
 
   public void Serialize(System.IO.TextWriter writer)
@@ -60,10 +60,12 @@ public abstract class BimboObject
   }
 
   public static BimboObject CreateObject(List list)
-  { string name = list.Name.IndexOf('.')==-1 ? "Bimbo.Objects."+list.Name : list.Name;
-    Type type = Type.GetType(name, false, true);
+  { string name = list.Name.IndexOf('.')==-1 ? Engine.DefaultObjectNamespace+'.'+list.Name : list.Name;
+    Type type = Engine.ObjectAssembly.GetType(name);
     if(type==null) throw new ArgumentException("No such object type: "+name);
-    return (BimboObject)type.GetConstructor(new Type[] { typeof(List) }).Invoke(new object[] { list });
+    ConstructorInfo cons = type.GetConstructor(new Type[] { typeof(List) });
+    if(cons==null) throw new ArgumentException(string.Format("The object '{0}' does not implement a deserializing constructor.", name));
+    return (BimboObject)cons.Invoke(new object[] { list });
   }
 
   [Serializable] public Point  Pos;
