@@ -10,8 +10,8 @@ public class Light
 { public int LitLength { get { return litlen; } }
   public Polygon[] LitShape { get { return litshape; } }
 
-  public void CreateNgon(float radius, int sides)
-  { float step=(float)(Math.PI*2/sides);
+  public void CreateNgon(double radius, int sides)
+  { double step=Math.PI*2/sides;
     Vector vec=new Vector(radius, 0);
     unsafe
     { Point* points = stackalloc Point[sides];
@@ -28,7 +28,7 @@ public class Light
     ShapeUpdated();
   }
 
-  public virtual float Falloff(Point point)
+  public virtual double Falloff(Point point)
   { if(litlen==0) throw new InvalidOperationException("The light has no shape or has not been calculated yet!");
     return 1-point.DistanceTo(litshape[0][0])/radius;
   }
@@ -62,7 +62,7 @@ public class Light
 
       // TODO: optimize edge order and use knowledge about edge connections
       // to reduce the number of generated triangles
-      const float epsilon=0.001f;
+      const double epsilon=0.001f;
       foreach(World.Polygon wpoly in wpolys)
         for(int ei=0,elen=wpoly.Poly.Length; ei<elen; ei++)
         { Line edge = wpoly.Poly.GetEdge(ei);
@@ -101,7 +101,7 @@ public class Light
   protected Rectangle bounds;
   protected Polygon[] shape, litshape;
   protected int litlen;
-  protected float radius;
+  protected double radius;
   ArrayList newlit = new ArrayList(), wpolys = new ArrayList();
 }
 
