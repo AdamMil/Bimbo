@@ -18,19 +18,45 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections;
-using System.Drawing;
+using GameLib.Mathematics.TwoD;
 
 namespace Bimbo
 {
 
-// TODO: handle rotation (?)
 public class Camera
-{ public void Push(Point pt) { points.Push(Point); Point=pt; }
-  public Point Pop() { Point = (Point)points.Pop(); return Point; }
+{ internal Camera() { }
 
-  public Point Point;
+  public Point Destination
+  { get { return tracking==null ? dpoint : tracking.Pos; }
+    set { tracking=null; dpoint=value; }
+  }
+
+  public void Push(Point pt)
+  { points.Push(tracking==null ? (object)dpoint : (object)tracking);
+    dpoint=pt;
+  }
+
+  public void Pop() { SetDestination(points.Pop()); }
   
+  public void SetDestination(object obj)
+  { if(obj is BimboObject) tracking = (BimboObject)obj;
+    else dpoint = (Point)obj;
+  }
+
+  public Point Current;
+
+  internal void Update(float timeDelta)
+  { Vector diff = Destination-Current;
+    if(diff.LengthSqr<=9) Current=Destination;
+    else
+    { if(diff.LengthSqr>640000) diff.Normalize(800);
+      Current += diff * (timeDelta * 4);
+    }
+  }
+
   Stack points = new Stack();
+  BimboObject tracking;
+  Point dpoint;
 }
 
 } // namespace Bimbo

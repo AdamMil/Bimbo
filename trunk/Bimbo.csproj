@@ -15,7 +15,7 @@
                 DefaultHTMLPageLayout = "Grid"
                 DefaultTargetSchema = "IE50"
                 DelaySign = "false"
-                OutputType = "Exe"
+                OutputType = "WinExe"
                 PreBuildEvent = ""
                 PostBuildEvent = ""
                 RootNamespace = "Bimbo"
@@ -100,6 +100,11 @@
                 />
                 <File
                     RelPath = "main.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Objects.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
