@@ -34,32 +34,40 @@ public class SerializableAttribute : Attribute
 public abstract class BimboObject
 { public BimboObject() { }
   public BimboObject(List list)
-  { foreach(FieldInfo f in GetType().GetFields())
+  { foreach(FieldInfo f in GetType().GetFields(BindingFlags.NonPublic|BindingFlags.Instance))
     { object[] alist = f.GetCustomAttributes(typeof(SerializableAttribute), true);
       if(alist.Length==0) continue;
       SerializableAttribute attr = (SerializableAttribute)alist[0];
-      List prop = list[(attr.Name==null ? f.Name : attr.Name).ToLower()];
+      List prop = list[attr.Name==null ? f.Name : attr.Name];
       if(prop!=null) f.SetValue(this, attr.Deserialize(prop, f.FieldType));
     }
+    
+    PartCoords = World.WorldToPart(pos);
   }
 
-  public abstract void Render(World world);
-  public abstract void Update(World world);
+  public int Layer { get { return layer; } set { layer=value; } }
+
+  public Point Pos { get { return pos; } }
+  public Vector Vel { get { return vel; } }
+
+  public abstract void Render();
+  public abstract void Update();
 
   public void Serialize(System.IO.TextWriter writer)
   { Type mytype = GetType();
     writer.Write('('+mytype.Name);
 
-    foreach(FieldInfo f in mytype.GetFields())
+    foreach(FieldInfo f in mytype.GetFields(BindingFlags.NonPublic|BindingFlags.Instance))
     { object[] alist = f.GetCustomAttributes(typeof(SerializableAttribute), true);
       if(alist.Length==0) continue;
       SerializableAttribute attr = (SerializableAttribute)alist[0];
-      writer.Write(" ({0} {1})", (attr.Name==null ? f.Name : attr.Name).ToLower(), attr.Serialize(f.GetValue(this)));
+      object val = f.GetValue(this);
+      if(val!=null) writer.Write(" ({0} {1})", attr.Name==null ? f.Name : attr.Name, attr.Serialize(val));
     }
     writer.WriteLine(')');
   }
 
-  public static BimboObject CreateObject(List list)
+  public static BimboObject CreateObject(World world, List list)
   { string name = list.Name.IndexOf('.')==-1 ? Engine.DefaultObjectNamespace+'.'+list.Name : list.Name;
     Type type = Engine.ObjectAssembly.GetType(name);
     if(type==null) throw new ArgumentException("No such object type: "+name);
@@ -67,16 +75,23 @@ public abstract class BimboObject
     if(cons==null)
       throw new ArgumentException(string.Format("The object '{0}' does not implement a deserializing constructor.",
                                                 name));
-    return (BimboObject)cons.Invoke(new object[] { list });
-  }
-  
-  protected void DrawSprite(Camera cam, Sprite sprite, int frame)
-  { sprite.Render((Pos-cam.TopLeft).ToPoint(), frame);
+    BimboObject obj = (BimboObject)cons.Invoke(new object[] { list });
+    obj.world = world;
+    return obj;
   }
 
-  [Serializable] public Point  Pos;
-  [Serializable] public Vector Vel;
-  public int Layer;
+  protected void DrawSprite(Sprite sprite, int frame)
+  { sprite.Render((pos-world.Camera.TopLeft).ToPoint(), frame);
+  }
+
+  internal System.Drawing.Point PartCoords;
+  protected World world;
+
+  [Serializable] protected string name;
+  [Serializable] protected Point pos;
+  [Serializable] protected Vector vel;
+
+  int layer;
 }
 
 } // namespace Bimbo

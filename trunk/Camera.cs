@@ -28,7 +28,7 @@ public class Camera
 { internal Camera() { }
 
   public Point Destination
-  { get { return tracking==null ? dpoint : tracking.Pos; }
+  { get { return tracking==null ? dpoint : tracking.Pos+tracking.Vel*0.1f; }
     set { tracking=null; dpoint=value; }
   }
 
@@ -52,9 +52,13 @@ public class Camera
 
   internal void Update(float timeDelta)
   { Vector diff = Destination-Current;
-    if(diff.LengthSqr<=9) Current=Destination;
+    float  len  = diff.LengthSqr;
+    if(len<=4 && tracking==null) Current=Destination;
+    else if(len<=10000 && (tracking==null || tracking.Vel.LengthSqr<=100))
+    { Current += diff * (timeDelta * 10);
+    }
     else
-    { if(diff.LengthSqr>640000) diff.Normalize(800);
+    { if(len>640000) diff.Normalize(800);
       Current += diff * (timeDelta * 4);
     }
   }

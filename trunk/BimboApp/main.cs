@@ -32,8 +32,8 @@ class App
     Engine.SetMode(800, 600);
     
     World world = new BimboAppWorld(@"C:\code\Smarm\data\level1");
+    world.Camera.SetDestination(Bimbo.Objects.Player.me);
     Engine.AddWorld(world);
-    world.Camera.Destination = new Point(320, 260);
 
     try { Engine.EventLoop(); }
     finally { Engine.Deinitialize(); }

@@ -31,11 +31,109 @@ public class World
 { public World() { }
   public World(string path) { Load(path); }
 
+  #region Constant, enum, and type definitions
+  public const int BlockWidth=128, BlockHeight=64; // in world pixels
+  public const int PartBlocksX=2, PartBlocksY=2;
+  public const int PartWidth=PartBlocksX*BlockWidth, PartHeight=PartBlocksY*BlockHeight;
+  public const int MaxTiles=32*1024*1024/BlockWidth/BlockHeight/4; // TODO: 32 meg tile cache -- make this dynamic
+
+  public enum PolyType { Solid, Water };
+  public class Polygon
+  { public Polygon(PolyType type, GameLib.Mathematics.TwoD.Polygon poly) { this.type=type; this.poly=poly; }
+    public GameLib.Mathematics.TwoD.Polygon Poly { get { return poly; } }
+    public PolyType Type { get { return type; } }
+
+    GameLib.Mathematics.TwoD.Polygon poly;
+    PolyType type;
+  }
+
+  public class CachedTexture
+  { public CachedTexture(string filename) { Filename=filename; }
+    public string Filename;
+    public GLTexture2D Texture;
+  }
+
+  public struct Tile
+  { public Tile(SD.Color c) { Texture=null; Color=c; }
+    public Tile(string filename) { Texture = new CachedTexture(filename); Color = SD.Color.FromArgb(0); }
+    public string Filename { get { return Texture.Filename; } }
+    public CachedTexture Texture;
+    public SD.Color Color;
+  }
+
+  public class Partition
+  { public Partition(SD.Point coord) { this.coord=coord; }
+    public ArrayList Objs  { get { if(objs==null) objs=new ArrayList(4); return objs; } }
+    public ArrayList Polys { get { if(polys==null) polys=new ArrayList(2); return polys; } }
+
+    public ArrayList RawObjs  { get { return objs; } }
+    public ArrayList RawPolys { get { return polys; } }
+    public Tile[][,] RawTiles { get { return tiles; } }
+
+    public Tile[,] GetTiles(int layer, bool create)
+    { if(tiles==null)
+      { if(!create) return null;
+        tiles = new Tile[Math.Max(layer+1, 8)][,];
+      }
+      if(tiles[layer]==null)
+      { if(!create) return null;
+        if(layer>=tiles.Length)
+        { Tile[][,] narr = new Tile[Math.Max(layer+1, tiles.Length*2)][,];
+          Array.Copy(tiles, narr, tiles.Length);
+          tiles = narr;
+        }
+        tiles[layer] = new Tile[PartBlocksX, PartBlocksY];
+      }
+      return tiles[layer];
+    }
+
+    public override bool Equals(object o)
+    { if(!(o is Partition)) return false;
+      return coord == ((Partition)o).coord;
+    }
+
+    public override int GetHashCode() { return coord.GetHashCode(); }
+
+    public int ObjIndex;
+
+    ArrayList objs, polys;
+    Tile[][,] tiles;
+    SD.Point coord;
+  }
+  #endregion
+
   public SD.Color BackColor { get { return bgColor; } }
   public Camera Camera { get { return cam; } }
   public int Frame { get { return frame; } }
   public string Name { get { return levelName; } }
   public float TimeDelta { get { return timeDelta; } }
+
+  public Partition GetPartition(int x, int y) { return GetPartition(new Point(x, y)); }
+  public Partition GetPartition(Point coord) { return GetPartition(coord.ToPoint()); }
+  public Partition GetPartition(SD.Point coord) { return (Partition)parts[coord]; }
+
+  public Partition GetPartitionW(int x, int y) { return GetPartition(WorldToPart(new Point(x, y))); }
+  public Partition GetPartitionW(Point coord) { return GetPartition(WorldToPart(coord)); }
+  public Partition GetPartitionW(SD.Point coord) { return GetPartition(WorldToPart(new Point(coord))); }
+
+  public GLTexture2D GetTexture(CachedTexture ct)
+  { LinkedList.Node node = (LinkedList.Node)tiles[ct.Filename];
+    if(node!=null) // if found, move it to the front of the MRU list
+    { mru.Remove(node);
+      mru.Prepend(node);
+    }
+    else
+    { ct.Texture = new GLTexture2D(new Surface(fsfile.GetStream(ct.Filename), ImageType.PNG, false));
+      ct.Texture.Bind();
+      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST);
+      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST);
+      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE);
+      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE);
+      tiles[ct.Filename] = mru.Prepend(ct);
+      UnloadOldTiles();
+    }
+    return ct.Texture;
+  }
 
   public void Load(string path)
   { path = GameLib.Utility.NormalizeDir(path);
@@ -82,7 +180,7 @@ public class World
         sub = child["objects"];
         if(sub!=null)
           foreach(List obj in sub)
-          { BimboObject o = BimboObject.CreateObject(obj);
+          { BimboObject o = BimboObject.CreateObject(this, obj);
             o.Layer = layer;
             Partition part = MakePartitionW(o.Pos);
             part.Objs.Add(o);
@@ -97,22 +195,45 @@ public class World
 
     fsfile = new FSFile(path+"images.fsf");
     basePath = path;
+    
+    OnLoad();
   }
 
+  public Partition MakePartition(int x, int y) { return MakePartition(new SD.Point(x, y)); }
+  public Partition MakePartition(SD.Point coord)
+  { object o = parts[coord];
+    if(o!=null) return (Partition)o;
+    Partition p = new Partition(coord);
+    parts[coord] = p;
+    return p;
+  }
+
+  public Partition MakePartitionW(int x, int y) { return MakePartition(WorldToPart(new Point(x, y))); }
+  public Partition MakePartitionW(SD.Point coord) { return MakePartition(WorldToPart(new Point(coord))); }
+  public Partition MakePartitionW(Point coord) { return MakePartition(WorldToPart(coord)); }
+
+  protected virtual void OnLoad() { }
+  protected virtual void OnUnload() { }
+  
   public virtual void Render()
   { Point topLeft = Camera.TopLeft;
     SD.Rectangle parts = WorldToPart(new Rectangle(topLeft.X, topLeft.Y, Engine.ScreenSize.Width, Engine.ScreenSize.Height));
 
-    float yo, xo, pxo, pyo=parts.Y*PartHeight - topLeft.Y;
-    for(int y=parts.Y; y<parts.Bottom; pyo+=PartHeight,y++)
-    { pxo=parts.X*PartWidth - topLeft.X;
-      for(int x=parts.X; x<parts.Right; pxo+=PartWidth,x++)
+    for(int y=parts.Y; y<parts.Bottom; y++)
+      for(int x=parts.X; x<parts.Right; x++)
       { Partition part = GetPartition(x, y);
-        if(part==null) continue;
-        part.ObjIndex = 0;
+        if(part!=null) part.ObjIndex = 0;
+      }
 
-        for(int layer=0; layer<numLayers; layer++)
-        { Tile[,] tiles = part.GetTiles(layer, false);
+    for(int layer=0; layer<numLayers; layer++)
+    { float yo, xo, pxo, pyo=parts.Y*PartHeight - topLeft.Y;
+      for(int y=parts.Y; y<parts.Bottom; pyo+=PartHeight,y++)
+      { pxo=parts.X*PartWidth - topLeft.X;
+        for(int x=parts.X; x<parts.Right; pxo+=PartWidth,x++)
+        { Partition part = GetPartition(x, y);
+          if(part==null) continue;
+
+          Tile[,] tiles = part.GetTiles(layer, false);
           if(tiles!=null)
           { yo = pyo;
             for(int ty=0; ty<PartBlocksY; yo+=BlockHeight,ty++)
@@ -142,22 +263,58 @@ public class World
               }
             }
           }
-          
+        }
+      }
+      
+      for(int y=parts.Y; y<parts.Bottom; y++)
+        for(int x=parts.X; x<parts.Right; x++)
+        { Partition part = GetPartition(x, y);
+          if(part==null) continue;
           ArrayList objs = part.RawObjs;
           if(objs!=null)
             for(; part.ObjIndex<objs.Count; part.ObjIndex++)
             { BimboObject obj = (BimboObject)objs[part.ObjIndex];
               if(obj.Layer!=layer) goto doneWithObjs;
-              obj.Render(this);
+              obj.Render();
             }
-          doneWithObjs:;
         }
-      }
+      doneWithObjs:;
     }
   }
 
+  public SD.Point TileOffset(SD.Point coord) // assumes tile coordinates are never negative
+  { coord.X = coord.X%PartWidth  / BlockWidth;
+    coord.Y = coord.Y%PartHeight / BlockHeight;
+    return coord;
+  }
+
+  public virtual void Update(float timeDelta)
+  { this.timeDelta = timeDelta;
+    cam.Update(timeDelta);
+
+    ArrayList moved = null;
+    foreach(Partition part in parts.Values)
+    { ArrayList objs = part.RawObjs;
+      if(objs==null) continue;
+      for(int i=0; i<objs.Count; i++)
+      { BimboObject obj = (BimboObject)objs[i];
+        obj.Update();
+        SD.Point npc = WorldToPart(obj.Pos);
+        if(obj.PartCoords != npc)
+        { obj.PartCoords = npc;
+          objs.RemoveAt(i--);
+          if(moved==null) moved=new ArrayList();
+          moved.Add(obj);
+        }
+      }
+    }
+
+    if(moved!=null) foreach(BimboObject obj in moved) MakePartition(obj.PartCoords).Objs.Add(obj);
+  }
+
   public void Unload()
-  { foreach(Partition p in parts.Values)
+  { OnUnload();
+    foreach(Partition p in parts.Values)
       if(p.RawTiles!=null)
         foreach(Tile[,] ta in p.RawTiles)
           if(ta!=null)
@@ -179,131 +336,7 @@ public class World
     numLayers = frame = 0;
   }
 
-  public virtual void Update(float timeDelta)
-  { this.timeDelta = timeDelta;
-    cam.Update(timeDelta);
-    foreach(Partition part in parts.Values)
-    { ArrayList objs = part.RawObjs;
-      if(objs!=null) foreach(BimboObject obj in objs) obj.Update(this);
-    }
-  }
-
-  const int BlockWidth=128, BlockHeight=64; // in world pixels
-  const int PartBlocksX=2, PartBlocksY=2;
-  const int PartWidth=PartBlocksX*BlockWidth, PartHeight=PartBlocksY*BlockHeight;
-  const int MaxTiles=32*1024*1024/BlockWidth/BlockHeight/4; // TODO: 32 meg tile cache -- make this dynamic
-
-  public enum PolyType { Solid, Water };
-  class Polygon
-  { public Polygon(PolyType type, GameLib.Mathematics.TwoD.Polygon poly) { this.type=type; this.poly=poly; }
-    public GameLib.Mathematics.TwoD.Polygon Poly { get { return poly; } }
-    public PolyType Type { get { return type; } }
-
-    GameLib.Mathematics.TwoD.Polygon poly;
-    PolyType type;
-  }
-
-  class CachedTexture
-  { public CachedTexture(string filename) { Filename=filename; }
-    public string Filename;
-    public GLTexture2D Texture;
-  }
-
-  struct Tile
-  { public Tile(SD.Color c) { Texture=null; Color=c; }
-    public Tile(string filename) { Texture = new CachedTexture(filename); Color = SD.Color.FromArgb(0); }
-    public string Filename { get { return Texture.Filename; } }
-    public CachedTexture Texture;
-    public SD.Color Color;
-  }
-
-  class Partition
-  { public Partition(SD.Point coord) { this.coord=coord; }
-    public ArrayList Objs  { get { if(objs==null) objs=new ArrayList(4); return objs; } }
-    public ArrayList Polys { get { if(polys==null) polys=new ArrayList(2); return polys; } }
-
-    public ArrayList RawObjs  { get { return objs; } }
-    public ArrayList RawPolys { get { return polys; } }
-    public Tile[][,] RawTiles { get { return tiles; } }
-
-    public Tile[,] GetTiles(int layer, bool create)
-    { if(tiles==null)
-      { if(!create) return null;
-        tiles = new Tile[Math.Max(layer+1, 8)][,];
-      }
-      if(tiles[layer]==null)
-      { if(!create) return null;
-        if(layer>=tiles.Length)
-        { Tile[][,] narr = new Tile[Math.Max(layer+1, tiles.Length*2)][,];
-          Array.Copy(tiles, narr, tiles.Length);
-          tiles = narr;
-        }
-        tiles[layer] = new Tile[PartBlocksX, PartBlocksY];
-      }
-      return tiles[layer];
-    }
-
-    public override bool Equals(object o)
-    { if(!(o is Partition)) return false;
-      return coord == ((Partition)o).coord;
-    }
-
-    public override int GetHashCode() { return coord.GetHashCode(); }
-
-    public int ObjIndex;
-
-    ArrayList objs, polys;
-    Tile[][,] tiles;
-    SD.Point coord;
-  }
-
-  Partition GetPartition(int x, int y) { return GetPartition(new Point(x, y)); }
-  Partition GetPartition(Point coord) { return GetPartition(coord.ToPoint()); }
-  Partition GetPartition(SD.Point coord) { return (Partition)parts[coord]; }
-
-  Partition GetPartitionW(int x, int y) { return GetPartition(WorldToPart(new Point(x, y))); }
-  Partition GetPartitionW(Point coord) { return GetPartition(WorldToPart(coord)); }
-  Partition GetPartitionW(SD.Point coord) { return GetPartition(WorldToPart(new Point(coord))); }
-
-  GLTexture2D GetTexture(CachedTexture ct)
-  { LinkedList.Node node = (LinkedList.Node)tiles[ct.Filename];
-    if(node!=null) // if found, move it to the front of the MRU list
-    { mru.Remove(node);
-      mru.Prepend(node);
-    }
-    else
-    { ct.Texture = new GLTexture2D(new Surface(fsfile.GetStream(ct.Filename), ImageType.PNG, false));
-      ct.Texture.Bind();
-      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST);
-      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST);
-      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE);
-      GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE);
-      tiles[ct.Filename] = mru.Prepend(ct);
-      UnloadOldTiles();
-    }
-    return ct.Texture;
-  }
-
-  Partition MakePartition(int x, int y) { return MakePartition(new SD.Point(x, y)); }
-  Partition MakePartition(SD.Point coord)
-  { object o = parts[coord];
-    if(o!=null) return (Partition)o;
-    Partition p = new Partition(coord);
-    parts[coord] = p;
-    return p;
-  }
-
-  Partition MakePartitionW(int x, int y) { return MakePartition(WorldToPart(new Point(x, y))); }
-  Partition MakePartitionW(SD.Point coord) { return MakePartition(WorldToPart(new Point(coord))); }
-  Partition MakePartitionW(Point coord) { return MakePartition(WorldToPart(coord)); }
-
-  SD.Point TileOffset(SD.Point coord) // assumes tile coordinates are never negative
-  { coord.X = coord.X%PartWidth  / BlockWidth;
-    coord.Y = coord.Y%PartHeight / BlockHeight;
-    return coord;
-  }
-
-  void UnloadOldTiles()
+  public void UnloadOldTiles()
   { while(mru.Count>MaxTiles)
     { LinkedList.Node node = mru.Tail;
       CachedTexture ct = (CachedTexture)node.Data;
@@ -314,11 +347,11 @@ public class World
     }
   }
 
-  SD.Point WorldToPart(Point coord)
+  public static SD.Point WorldToPart(Point coord)
   { return new SD.Point((int)Math.Floor(coord.X/PartWidth), (int)Math.Floor(coord.Y/PartHeight));
   }
 
-  SD.Rectangle WorldToPart(Rectangle rect)
+  public static SD.Rectangle WorldToPart(Rectangle rect)
   { return new SD.Rectangle((int)Math.Floor(rect.X/PartWidth), (int)Math.Floor(rect.Y/PartHeight),
                             (int)Math.Ceiling((rect.Width+(PartWidth-1))/PartWidth),
                             (int)Math.Ceiling((rect.Height+(PartHeight-1))/PartHeight));
