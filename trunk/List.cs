@@ -70,6 +70,18 @@ public class List : IEnumerable
     sw.Flush();
   }
   
+  public System.Drawing.Color ToColor()
+  { if(items.Count==1)
+    { string[] s = GetString(0).Split(',');
+      return s.Length==3 ? System.Drawing.Color.FromArgb(byte.Parse(s[0]), byte.Parse(s[1]), byte.Parse(s[2]))
+              : System.Drawing.Color.FromArgb(byte.Parse(s[3]), byte.Parse(s[0]), byte.Parse(s[1]), byte.Parse(s[2]));
+    }
+    else if(items.Count==3) return System.Drawing.Color.FromArgb(GetInt(0), GetInt(1), GetInt(2));
+    else return System.Drawing.Color.FromArgb(GetInt(3), GetInt(0), GetInt(1), GetInt(2));
+  }
+
+  public System.Drawing.Point ToPoint() { return new System.Drawing.Point(GetInt(0), GetInt(1)); }
+
   public override string ToString()
   { StringWriter s = new StringWriter();
     Write(s, 0);
