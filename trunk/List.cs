@@ -90,6 +90,45 @@ public class List : IEnumerable
 
   public IEnumerator GetEnumerator() { return items.GetEnumerator(); }
 
+  public static object ListToObject(List list, Type destType)
+  { if(destType==typeof(System.Drawing.Point)) return list.ToPoint();
+    if(destType==typeof(System.Drawing.Color)) return list.ToColor();
+    if(destType==typeof(GameLib.Mathematics.TwoD.Point))
+      return new GameLib.Mathematics.TwoD.Point((float)list.GetFloat(0), (float)list.GetFloat(1));
+    if(destType==typeof(GameLib.Mathematics.TwoD.Vector))
+      return new GameLib.Mathematics.TwoD.Vector((float)list.GetFloat(0), (float)list.GetFloat(1));
+    return Convert.ChangeType(list[0], destType);
+  }
+
+  public static string ObjectToString(object o) { return ObjectToString(o, false); }
+  public static string ObjectToString(object o, bool preferList)
+  { Type type = o.GetType();
+    if(type==typeof(string))
+    { string s = (string)o;
+      char delim = s.IndexOf('\"')==-1 ? '\"' : '\'';
+      return delim + s + delim;
+    }
+    if(type==typeof(double)) return ((double)o).ToString("R");
+    if(type==typeof(float)) return ((float)o).ToString("R");
+    if(type==typeof(GameLib.Mathematics.TwoD.Point))
+    { GameLib.Mathematics.TwoD.Point pt = (GameLib.Mathematics.TwoD.Point)o;
+      return string.Format(preferList ? "({0:R} {1:R})" : "{0:R} {1:R}", pt.X, pt.Y);
+    }
+    if(type==typeof(GameLib.Mathematics.TwoD.Vector))
+    { GameLib.Mathematics.TwoD.Vector vect = (GameLib.Mathematics.TwoD.Vector)o;
+      return string.Format(preferList ? "({0:R} {1:R})" : "{0:R} {1:R}", vect.X, vect.Y);
+    }
+    if(type==typeof(System.Drawing.Color))
+    { System.Drawing.Color c = (System.Drawing.Color)o;
+      return string.Format(preferList ? "({0} {1} {2} {3})" : "{0} {1} {2} {3}", c.R, c.G, c.B, c.A);
+    }
+    if(type==typeof(System.Drawing.Point))
+    { System.Drawing.Point pt = (System.Drawing.Point)o;
+      return string.Format(preferList ? "({0} {1})" : "{0} {1}", pt.X, pt.Y);
+    }
+    return o.ToString();
+  }
+
   #region Internals
   void Read(TextReader stream) // .NET needs higher-level text IO
   { int read = SkipWS(stream);
@@ -152,18 +191,7 @@ public class List : IEnumerable
       { if(level==0) stream.Write("\n  ");
         ((List)o).Write(stream, level+1);
       }
-      else if(o is string)
-      { string s = (string)o;
-        char delim = s.IndexOf('\"')==-1 ? '\"' : '\'';
-        stream.Write(delim);
-        stream.Write(s);
-        stream.Write(delim);
-      }
-      else if(o is double)
-      { double d = (double)o;
-        stream.Write(d.ToString("R"));
-      }
-      else stream.Write(o.ToString());
+      else stream.WriteLine(ObjectToString(o));
       wrote=true;
     }
     stream.Write(')');
