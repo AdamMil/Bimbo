@@ -76,7 +76,7 @@ public class World
     // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
     // if no collision occurred
     public bool Intersection(Line line, float size, out LinePolyIntersection lpi)
-    { if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit; // FIXME: sometimes these disagree
+    { if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit;
       const float epsilon = 0.00001f;
 
       unsafe
@@ -92,9 +92,6 @@ public class World
           edists[i] = lines[i].WhichSide(end);
         }
 
-bool inside=true;
-for(int i=0; i<len; i++) if(sdists[i]>-epsilon) {inside=false; break; }
-if(inside) inside=false; //throw new Exception("gah!");
         for(int i=0; i<len; i++)
         { float sd = sdists[i], ed = edists[i];
           if(sd<epsilon && sd>-epsilon) // we might already be touching it
@@ -123,9 +120,6 @@ if(inside) inside=false; //throw new Exception("gah!");
       }
       
       nothit:
-bool ins=true;
-for(int i=0; i<poly.Length; i++) if(GetInflatedEdge(i, size).WhichSide(line.End)>-epsilon) {ins=false; break; }
-if(ins) ins=false; //throw new Exception("gah!");
       unsafe { fixed(LinePolyIntersection* p=&lpi) { } } // pacify the compiler (no, we didn't assign to lpi)
       return false;
     }
