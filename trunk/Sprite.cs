@@ -148,7 +148,7 @@ public class Sprite
   public static Stream GetSpriteStream(string fileName)
   { string path = Engine.SpritePath;
     if(path!=null && File.Exists(path+fileName))
-      return File.Open(path+fileName, FileMode.Open);
+      return File.Open(path+fileName, FileMode.Open, FileAccess.Read);
     else if(Engine.SpriteFile!=null && Engine.SpriteFile.Contains(fileName))
       return Engine.SpriteFile.GetStream(fileName);
     else throw new ArgumentException(string.Format("Unable to locate {0}", fileName));

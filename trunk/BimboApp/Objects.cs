@@ -60,11 +60,14 @@ public class Player : BimboObject
   public void Gravity() { AddForce(world.Gravity*(Mass*world.TimeDelta)); } // add gravity 
 
   // try to move according to the velocity. do collision detection with walls and other objects.
-  public void Move()
+  public void Move() { vel = Move(vel, 0); }
+  public Vector Move(Vector vel, int count)
   { SD.Rectangle parts = World.WorldToPart(Bounds);
 
     Line movement = new Line(pos, vel*world.TimeDelta);
-    int size = sprite.Height/2;
+    int size = sprite.Width/2;
+
+    if(count==10) count=10;
 
     for(int y=parts.Y; y<parts.Bottom; y++)
       for(int x=parts.X; x<parts.Right; x++)
@@ -73,14 +76,25 @@ public class Player : BimboObject
         ArrayList polys = part.RawPolys;
         if(polys==null) continue;
         foreach(World.Polygon poly in polys)
-        { Point ip = poly.Intersection(movement, size);
-          if(ip.Valid)
-          {
+        { World.LinePolyIntersection lpi;
+          if(poly.Intersection(movement, size, out lpi))
+          { Vector rvel = lpi.Line.Vector; // we want to cancel out the component of the velocity perpendicular
+            rvel.Y = -rvel.Y;              // to the line we hit. the Vector.Angle property assumes standard
+            float angle = rvel.Angle;      // cartesian coordinates (Y increases upwards), so we invert Y before
+            rvel = vel.Rotated(-angle);    // getting the angle. then we rotate the velocity so it's as though the
+            rvel.X = 0;                    // line we hit was horizontal, get only the perpendicular component (Y),
+            vel -= rvel.Rotated(angle);    // rotate it back, and then subtract it from the velocity.
+            float frac = 1-(float)Math.Sqrt(lpi.DistSqr)/movement.Length;
+            pos = lpi.IP; // however, the point may not have hit the polygon immediately, so we move along the
+                          // old vector to the intersection point before continuing with the new velocity
+            if(frac<0.01) return vel; // we ignore the remaining velocity if it's sufficiently small
+            return Move(vel*frac, count+1);
           }
         }
       }
 
     pos = movement.End;
+    return vel;
   }
 
   public override void Render()
@@ -94,6 +108,12 @@ public class Player : BimboObject
       GL.glVertex2f(pos.X+w, pos.Y-h);
       GL.glVertex2f(pos.X+w, pos.Y+h);
       GL.glVertex2f(pos.X-w, pos.Y+h);
+    GL.glEnd();
+    
+    GL.glColor(SD.Color.White);
+    GL.glBegin(GL.GL_LINES);
+      GL.glVertex2f(pos.X, pos.Y);
+      GL.glVertex2f(pos.X+vel.X, pos.Y+vel.Y);
     GL.glEnd();
   }
 
@@ -114,11 +134,12 @@ public class Player : BimboObject
         if(vlen>=MaxWalkingSpeed) walk=0;        // speed
         else walk = Math.Min(Math.Abs(walk), MaxWalkingSpeed-vlen) * Math.Sign(walk);
       }
-      AddForce(RightVector * walk);
+      AddForce(RightVector * (walk*Mass));
     }
 
     vel += force/Mass; force = new Vector(); // apply all the forces on the object
     if(vel.LengthSqr > MaxSpeed*MaxSpeed) vel.Normalize(MaxSpeed); // limit to maximum speed
+    if(vel.Y>=0 && Keyboard.Pressed(Key.Up)) vel.Y -= 250;
 
     Move(); // attempt to move
   }
@@ -126,7 +147,7 @@ public class Player : BimboObject
   public Vector RightVector { get { return new Vector(1, 0); } }
 
   public float WalkingAccel
-  { get { return (Keyboard.Pressed(Key.Left)?-1000:0) + (Keyboard.Pressed(Key.Right)?1000:0); }
+  { get { return (Keyboard.Pressed(Key.Left)?-400:0) + (Keyboard.Pressed(Key.Right)?400:0); }
   }
 
   protected Vector force;
