@@ -17,22 +17,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using Bimbo;
-using GameLib.Interop.OpenGL;
-using GameLib.Mathematics.TwoD;
+using Bimbo.Objects;
 
-namespace Bimbo.Objects
+namespace BimboApp
 {
 
-public class Coin : BimboObject
-{ public Coin(List list) : base(list) { sprite = Sprite.Load("coin.sps"); }
+public class BimboAppWorld : Bimbo.World
+{ public BimboAppWorld() { }
+  public BimboAppWorld(string path) : base(path) { }
 
-  public override void Render(World world) { DrawSprite(world.Camera, sprite, Anim.GetFrame(AnimPos)); }
-  public override void Update(World world) { }
-
-  Sprite sprite;
-
-  internal static Animation.Position AnimPos;
-  internal static Animation Anim = new Animation(new Animation.Chunk(0,  8, 0.10f));
+  public override void Update(float timeDelta)
+  { base.Update(timeDelta);
+    Coin.AnimPos = Coin.Anim.Update(Coin.AnimPos, timeDelta);
+  }
 }
 
-}
+} // namespace BimboApp

@@ -32,11 +32,8 @@ public class Camera
     set { tracking=null; dpoint=value; }
   }
 
-  public System.Drawing.Point TopLeft
-  { get
-    { return new System.Drawing.Point((int)Math.Round(Current.X)-Engine.ScreenSize.Width/2,
-                                      (int)Math.Round(Current.Y)-Engine.ScreenSize.Height/2);
-    }
+  public Point TopLeft
+  { get { return new Point(Current.X-Engine.ScreenSize.Width/2, Current.Y-Engine.ScreenSize.Height/2); }
   }
 
   public void Push(Point pt)

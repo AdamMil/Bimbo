@@ -30,10 +30,10 @@ class App
     Engine.SpritePath = @"c:\games\swarm3\images\sprites";
     Engine.WindowTitle = "Bimbo Test";
     Engine.SetMode(800, 600);
-
-    World world = Engine.CreateWorld();
-    world.Load(@"C:\code\Smarm\data\test");
-    world.Camera.Destination = new Point(220, 160);
+    
+    World world = new BimboAppWorld(@"C:\code\Smarm\data\level1");
+    Engine.AddWorld(world);
+    world.Camera.Destination = new Point(320, 260);
 
     try { Engine.EventLoop(); }
     finally { Engine.Deinitialize(); }

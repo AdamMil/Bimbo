@@ -64,8 +64,14 @@ public abstract class BimboObject
     Type type = Engine.ObjectAssembly.GetType(name);
     if(type==null) throw new ArgumentException("No such object type: "+name);
     ConstructorInfo cons = type.GetConstructor(new Type[] { typeof(List) });
-    if(cons==null) throw new ArgumentException(string.Format("The object '{0}' does not implement a deserializing constructor.", name));
+    if(cons==null)
+      throw new ArgumentException(string.Format("The object '{0}' does not implement a deserializing constructor.",
+                                                name));
     return (BimboObject)cons.Invoke(new object[] { list });
+  }
+  
+  protected void DrawSprite(Camera cam, Sprite sprite, int frame)
+  { sprite.Render((Pos-cam.TopLeft).ToPoint(), frame);
   }
 
   [Serializable] public Point  Pos;
