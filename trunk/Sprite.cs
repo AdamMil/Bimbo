@@ -117,6 +117,9 @@ public class Sprite
   public Sprite(Surface surface) { Load(surface, surface.Width); }
   public Sprite(Surface surface, int elementWidth) { Load(surface, elementWidth); }
 
+  public int Height { get { return texture.ImgHeight; } }
+  public int Width { get { return width; } }
+
   public void Render(Point center, int frame)
   { if(frame<0 || frame>=frames) throw new ArgumentOutOfRangeException("frame");
     float sx = center.X-width*0.5f, sy = center.Y-(float)texture.ImgHeight*0.5f;

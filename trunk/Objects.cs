@@ -80,10 +80,6 @@ public abstract class BimboObject
     return obj;
   }
 
-  protected void DrawSprite(Sprite sprite, int frame)
-  { sprite.Render((pos-world.Camera.TopLeft).ToPoint(), frame);
-  }
-
   internal System.Drawing.Point PartCoords;
   protected World world;
 

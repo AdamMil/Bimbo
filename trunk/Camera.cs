@@ -24,6 +24,7 @@ namespace Bimbo
 {
 
 // TODO: add support for rotation?
+// TODO: allow subclassing
 public class Camera
 { internal Camera() { }
 
