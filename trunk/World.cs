@@ -39,11 +39,79 @@ public class World
 
   public enum PolyType { Solid, Water };
   public class Polygon
-  { public Polygon(PolyType type, GameLib.Mathematics.TwoD.Polygon poly) { this.type=type; this.poly=poly; }
-    public GameLib.Mathematics.TwoD.Polygon Poly { get { return poly; } }
+  { public Polygon(PolyType type, GameLib.Mathematics.TwoD.Polygon poly) { this.type=type; Poly=poly; }
+
+    public Rectangle Bounds { get { return bounds; } }
+
+    public GameLib.Mathematics.TwoD.Polygon Poly
+    { get { return poly; }
+      set
+      { if(value==null) throw new ArgumentNullException("Poly");
+        if(poly!=value)
+        { poly=value;
+          Update();
+        }
+      }
+    }
+
     public PolyType Type { get { return type; } }
 
+    public Vector GetEdgeNormal(int edge) { return normals[edge]; }
+
+    // gets the specified edge of the polygon, assuming the polygon has been inflated by 'size'
+    public Line GetInflatedEdge(int edge, float size)
+    { Line line = poly.GetEdge(edge);
+      line.Start += normals[edge]*size;
+      return line;
+    }
+
+    // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
+    // if no collision occurred
+    public Point Intersection(Line line, float size)
+    { if(!line.Intersects(Bounds.Inflated(size, size))) return Point.Invalid;
+
+      const float epsilon = 0.001f;
+
+      unsafe
+      { Line* lines = stackalloc Line[poly.Length];
+        float* sdists = stackalloc float[poly.Length];
+        Point end = line.End, ip = new Point();
+        float mind = float.MaxValue;
+        int mini = -1;
+        for(int i=0; i<poly.Length; i++)
+        { lines[i] = GetInflatedEdge(i, size); // inflate the polygon by 'size'
+          sdists[i] = lines[i].WhichSide(line.Start);
+        }
+        for(int i=0; i<poly.Length; i++)
+        { float sd = sdists[i], ed = lines[i].WhichSide(end);
+          if(sd<epsilon && sd>-epsilon) // we might already be touching it
+          { for(int j=0; j<poly.Length; j++) if(j!=i && sdists[i]>=epsilon) goto nope;
+            return line.Start;
+          }
+          nope:
+          if(sd>=epsilon && ed<=-epsilon) // 'line' straddles a clipping line
+          { ip = line.Intersection(lines[i]);
+            float dist = ip.DistanceSquaredTo(line.Start);
+            if(dist<mind) { mini=i; mind=dist; }
+          }
+        }
+        if(mini==-1) return Point.Invalid;
+        for(int i=0; i<poly.Length; i++) if(i!=mini && lines[i].WhichSide(ip)>0) return Point.Invalid;
+        return ip;
+      }
+    }
+
+    public void Update() // precalculate the bounding box and the edge normals
+    { if(!poly.IsConvex() || !poly.IsClockwise())
+        throw new ArgumentException("The polygon must be convex and defined in a clockwise manner.");
+      if(normals==null || normals.Length!=poly.Length) normals = new Vector[poly.Length];
+      for(int i=0; i<poly.Length; i++) normals[i] = poly.GetEdge(i).Vector.CrossVector.Normal;
+      bounds = poly.GetBounds();
+    }
+
     GameLib.Mathematics.TwoD.Polygon poly;
+    Vector[] normals;
+    Rectangle bounds;
     PolyType type;
   }
 

@@ -42,18 +42,10 @@ public class Coin : BimboObject
 public class Player : BimboObject
 { public Player(List list) : base(list) { sprite = Sprite.Load("swarmie.png"); me=this; }
 
-  public override void Render()
-  { sprite.Render(pos, 0);
-
-    float w = sprite.Width*0.5f, h=sprite.Height*0.5f;
-    GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
-    GL.glColor(SD.Color.Red);
-    GL.glBegin(GL.GL_LINE_LOOP);
-      GL.glVertex2f(pos.X-w, pos.Y-h);
-      GL.glVertex2f(pos.X+w, pos.Y-h);
-      GL.glVertex2f(pos.X+w, pos.Y+h);
-      GL.glVertex2f(pos.X-w, pos.Y+h);
-    GL.glEnd();
+  public Rectangle Bounds
+  { get
+    { return new Rectangle(pos.X-sprite.Width*0.5f, pos.Y-sprite.Height*0.5f, sprite.Width, sprite.Height);
+    }
   }
 
   public void AddForce(Vector force) { AddForce(force, new Point(0, 0)); } // apply a force to the object
@@ -69,7 +61,40 @@ public class Player : BimboObject
 
   // try to move according to the velocity. do collision detection with walls and other objects.
   public void Move()
-  { pos += vel * world.TimeDelta;
+  { SD.Rectangle parts = World.WorldToPart(Bounds);
+
+    Line movement = new Line(pos, vel*world.TimeDelta);
+    int size = sprite.Height/2;
+
+    for(int y=parts.Y; y<parts.Bottom; y++)
+      for(int x=parts.X; x<parts.Right; x++)
+      { World.Partition part = world.GetPartition(x, y);
+        if(part==null) continue;
+        ArrayList polys = part.RawPolys;
+        if(polys==null) continue;
+        foreach(World.Polygon poly in polys)
+        { Point ip = poly.Intersection(movement, size);
+          if(ip.Valid)
+          {
+          }
+        }
+      }
+
+    pos = movement.End;
+  }
+
+  public override void Render()
+  { sprite.Render(pos, 0);
+
+    float w = sprite.Width*0.5f, h=sprite.Height*0.5f;
+    GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
+    GL.glColor(SD.Color.Red);
+    GL.glBegin(GL.GL_LINE_LOOP);
+      GL.glVertex2f(pos.X-w, pos.Y-h);
+      GL.glVertex2f(pos.X+w, pos.Y-h);
+      GL.glVertex2f(pos.X+w, pos.Y+h);
+      GL.glVertex2f(pos.X-w, pos.Y+h);
+    GL.glEnd();
   }
 
   public override void Update()

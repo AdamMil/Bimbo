@@ -82,7 +82,7 @@ public sealed class Engine
     while(true)
     { if(!ProcessEvents(eventproc, false)) break;
       if(world!=null)
-      { float time = (float)Timing.Seconds, delta = time-lastTime;
+      { float time = (float)Timing.Seconds, delta = System.Math.Min(time-lastTime, 0.1f);
         lastTime = time;
         world.Update(delta);
         Render();
