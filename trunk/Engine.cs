@@ -59,17 +59,9 @@ public sealed class Engine
     }
   }
 
-  public static World CreateWorld()
-  { World w = new World();
-    worlds.Add(w);
+  public static void AddWorld(World w)
+  { worlds.Add(w);
     if(world==null) ActiveWorld = w;
-    return w;
-  }
-
-  public static void DestroyWorld(World w)
-  { w.Unload();
-    worlds.Remove(w);
-    if(world==w) world=null;
   }
 
   public static void Deinitialize()
@@ -118,6 +110,12 @@ public sealed class Engine
         if(e is ExceptionEvent) throw ((ExceptionEvent)e).Exception;
       } while((e=Events.NextEvent(0))!=null);
     return true;
+  }
+
+  public static void RemoveWorld(World w)
+  { w.Unload();
+    worlds.Remove(w);
+    if(world==w) world=null;
   }
 
   public static void Render() { if(world!=null) Render(world, true); }

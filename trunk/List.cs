@@ -27,7 +27,12 @@ public class List : IEnumerable
 { public List() { name=string.Empty; }
   public List(string name) { this.name=name; }
   public List(string name, params object[] items) { this.name=name; foreach(object o in items) Add(o); }
-  public List(Stream stream) { name=string.Empty; Read(new StreamReader(stream)); }
+  public List(Stream stream) : this(stream, true) { }
+  public List(Stream stream, bool autoClose)
+  { name=string.Empty;
+    Read(new StreamReader(stream));
+    if(autoClose) stream.Close();
+  }
 
   public object this[int index] { get { return items[index]; } set { items[index]=value; } }
 

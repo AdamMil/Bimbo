@@ -27,10 +27,13 @@ using GameLib.Video;
 namespace Bimbo
 {
 
-public sealed class World
-{ internal World() { }
+public class World
+{ public World() { }
+  public World(string path) { Load(path); }
+
   public SD.Color BackColor { get { return bgColor; } }
   public Camera Camera { get { return cam; } }
+  public int Frame { get { return frame; } }
   public string Name { get { return levelName; } }
   public float TimeDelta { get { return timeDelta; } }
 
@@ -96,11 +99,11 @@ public sealed class World
     basePath = path;
   }
 
-  public void Render()
-  { SD.Point topLeft = Camera.TopLeft;
+  public virtual void Render()
+  { Point topLeft = Camera.TopLeft;
     SD.Rectangle parts = WorldToPart(new Rectangle(topLeft.X, topLeft.Y, Engine.ScreenSize.Width, Engine.ScreenSize.Height));
 
-    int yo, xo, pxo, pyo=parts.Y*PartHeight - topLeft.Y;
+    float yo, xo, pxo, pyo=parts.Y*PartHeight - topLeft.Y;
     for(int y=parts.Y; y<parts.Bottom; pyo+=PartHeight,y++)
     { pxo=parts.X*PartWidth - topLeft.X;
       for(int x=parts.X; x<parts.Right; pxo+=PartWidth,x++)
@@ -120,20 +123,20 @@ public sealed class World
                 { GL.glColor(SD.Color.White);
                   GetTexture(tile.Texture).Bind();
                   GL.glBegin(GL.GL_QUADS);
-                    GL.glTexCoord2f(0, 0); GL.glVertex2i(xo, yo);
-                    GL.glTexCoord2f(1, 0); GL.glVertex2i(xo+BlockWidth, yo);
-                    GL.glTexCoord2f(1, 1); GL.glVertex2i(xo+BlockWidth, yo+BlockHeight);
-                    GL.glTexCoord2f(0, 1); GL.glVertex2i(xo, yo+BlockHeight);
+                    GL.glTexCoord2f(0, 0); GL.glVertex2f(xo, yo);
+                    GL.glTexCoord2f(1, 0); GL.glVertex2f(xo+BlockWidth, yo);
+                    GL.glTexCoord2f(1, 1); GL.glVertex2f(xo+BlockWidth, yo+BlockHeight);
+                    GL.glTexCoord2f(0, 1); GL.glVertex2f(xo, yo+BlockHeight);
                   GL.glEnd();
                 }
                 else if(tile.Color.A!=0)
                 { GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
                   GL.glColor(tile.Color);
                   GL.glBegin(GL.GL_QUADS);
-                    GL.glVertex2i(xo, yo);
-                    GL.glVertex2i(xo+BlockWidth, yo);
-                    GL.glVertex2i(xo+BlockWidth, yo+BlockHeight);
-                    GL.glVertex2i(xo, yo+BlockHeight);
+                    GL.glVertex2f(xo, yo);
+                    GL.glVertex2f(xo+BlockWidth, yo);
+                    GL.glVertex2f(xo+BlockWidth, yo+BlockHeight);
+                    GL.glVertex2f(xo, yo+BlockHeight);
                   GL.glEnd();
                 }
               }
@@ -173,10 +176,10 @@ public sealed class World
     basePath  = null;
     bgColor   = SD.Color.Black;
     levelName = string.Empty;
-    numLayers = 0;
+    numLayers = frame = 0;
   }
 
-  public void Update(float timeDelta)
+  public virtual void Update(float timeDelta)
   { this.timeDelta = timeDelta;
     cam.Update(timeDelta);
     foreach(Partition part in parts.Values)
@@ -328,7 +331,7 @@ public sealed class World
   string levelName, basePath;
   SD.Color bgColor;
   float timeDelta;
-  int numLayers;
+  int numLayers, frame;
 }
 
 } // namespace Bimbo
