@@ -64,47 +64,51 @@ public class World
 
     public PolyType Type { get { return type; } }
 
-    public Vector GetEdgeNormal(int edge) { return normals[edge]; }
-
     // gets the specified edge of the polygon, assuming the polygon has been inflated by 'size'
     public Line GetInflatedEdge(int edge, float size)
     { Line line = poly.GetEdge(edge);
-      line.Start += normals[edge]*size;
+      line.Start += normals[edge+4]*size;
       return line;
     }
 
     // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
     // if no collision occurred
     public bool Intersection(Line line, float size, out LinePolyIntersection lpi)
-    { const float epsilon = 0.1f;
-      if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit;
+    { const float epsilon = 0.000001f;
 
       unsafe
-      { Line* lines = stackalloc Line[poly.Length];
-        float* sdists = stackalloc float[poly.Length];
-        float* edists = stackalloc float[poly.Length];
+      { int len=poly.Length+4, mini=-1;
+        Line* lines = stackalloc Line[len];
+        float* sdists = stackalloc float[len];
+        float* edists = stackalloc float[len];
         Point end = line.End, ip = new Point();
         float mind = float.MaxValue;
-        int mini = -1, len=poly.Length;
-        for(int i=0; i<len; i++)
-        { lines[i] = GetInflatedEdge(i, size); // inflate the polygon by 'size'
+
+        // first check against the bounding box
+        lines[0] = new Line(topLeft.X, topLeft.Y-size, 1, 0);
+        lines[1] = new Line(btmRight.X+size, topLeft.Y, 0, 1);
+        lines[2] = new Line(btmRight.X, btmRight.Y+size, -1, 0);
+        lines[3] = new Line(topLeft.X-size, btmRight.Y, 0, -1);
+        for(int i=0; i<4; i++)
+        { sdists[i] = normals[i].DotProduct(line.Start - lines[i].Start);
+          edists[i] = normals[i].DotProduct(end - lines[i].Start);
+          if(sdists[i]>=epsilon && edists[i]>=epsilon) goto nothit;
+        }
+
+        for(int i=4; i<len; i++) // inflate the polygon by 'size'
+        { lines[i] = GetInflatedEdge(i-4, size);
           sdists[i] = normals[i].DotProduct(line.Start - lines[i].Start);
           edists[i] = normals[i].DotProduct(end - lines[i].Start);
         }
 
+bool ins=true;
+for(int i=0; i<len; i++) if(sdists[i]>=epsilon) ins=false;
+if(ins==true) throw new Exception("bad position"); // this should never happen!
+
         for(int i=0; i<len; i++)
         { float sd = sdists[i], ed = edists[i];
-          if(sd<epsilon && sd>-epsilon) // this special case (we're already touching it) helps prevent buildup
-          { for(int j=0; j<len; j++) if(j!=i && sdists[j]>=epsilon) goto nope;  // of floating-point errors
-            for(int j=0; j<len; j++) if(edists[j]>-epsilon) goto nothit;
-            lpi.IP   = line.Start;
-            lpi.Line = lines[i];
-            lpi.Normal = normals[i];
-            lpi.DistSqr = 0;
-            return true;
-          }
           if(sd>=epsilon && ed<=-epsilon) // 'line' straddles a clipping line
-          { Point pip = line.Start + line.Vector*(sd/(sd-ed));//line.LineIntersection(lines[i]);
+          { Point pip = line.Start + line.Vector*(sd/(sd-ed));
             float dist = pip.DistanceSquaredTo(line.Start);
             if(dist<mind)
             { for(int j=0; j<len; j++) if(j!=i && normals[j].DotProduct(pip - lines[j].Start)>epsilon) goto nope;
@@ -114,7 +118,10 @@ public class World
           nope:;
         }
         if(mini==-1) goto nothit;
-        lpi.IP      = ip + normals[mini]*0.5f;
+        lpi.IP      = ip + normals[mini]*0.001f; // try to make sure that the intersection point isn't inside
+ins=true;
+for(int i=0; i<len; i++) if(normals[i].DotProduct(lpi.IP - lines[i].Start)>epsilon) ins=false;
+if(ins==true) throw new Exception("intersection point is inside polygon!");
         lpi.Line    = lines[mini];
         lpi.Normal  = normals[mini];
         lpi.DistSqr = mind;
@@ -129,13 +136,26 @@ public class World
     public void Update() // precalculate the bounding box and the edge normals
     { if(!poly.IsConvex() || !poly.IsClockwise())
         throw new ArgumentException("The polygon must be convex and defined in a clockwise manner.");
-      if(normals==null || normals.Length!=poly.Length) normals = new Vector[poly.Length];
-      for(int i=0; i<poly.Length; i++) normals[i] = poly.GetEdge(i).Vector.CrossVector.Normal;
-      bounds = poly.GetBounds();
+      if(normals==null || normals.Length!=poly.Length+4) normals = new Vector[poly.Length+4];
+      normals[0] = new Vector(0, -1);
+      normals[1] = new Vector(1, 0);
+      normals[2] = new Vector(0, 1);
+      normals[3] = new Vector(-1, 0);
+      for(int i=0; i<poly.Length; i++) normals[i+4] = poly.GetEdge(i).Vector.CrossVector.Normal;
+      topLeft = new Point(float.MaxValue, float.MaxValue);
+      btmRight = new Point(float.MinValue, float.MinValue);
+      for(int i=0; i<poly.Length; i++)
+      { if(poly[i].X<topLeft.X)  topLeft.X  = poly[i].X;
+        if(poly[i].X>btmRight.X) btmRight.X = poly[i].X;
+        if(poly[i].Y<topLeft.Y)  topLeft.Y  = poly[i].Y;
+        if(poly[i].Y>btmRight.Y) btmRight.Y = poly[i].Y;
+      }
+      bounds = new Rectangle(topLeft, btmRight-topLeft);
     }
 
     GameLib.Mathematics.TwoD.Polygon poly;
     Vector[] normals;
+    Point topLeft, btmRight;
     Rectangle bounds;
     PolyType type;
   }
@@ -499,9 +519,8 @@ public class World
   }
 
   public static SD.Rectangle WorldToPart(Rectangle rect)
-  { return new SD.Rectangle((int)Math.Floor(rect.X/PartWidth), (int)Math.Floor(rect.Y/PartHeight),
-                            (int)Math.Ceiling((rect.Width+(PartWidth-1))/PartWidth),
-                            (int)Math.Ceiling((rect.Height+(PartHeight-1))/PartHeight));
+  { SD.Point pt = WorldToPart(rect.Location), pt2 = WorldToPart(rect.BottomRight);
+    return new SD.Rectangle(pt.X, pt.Y, pt2.X-pt.X+1, pt2.Y-pt.Y+1);
   }
   
   Hashtable parts=new Hashtable(), tiles=new Hashtable();
