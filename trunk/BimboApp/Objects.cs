@@ -86,12 +86,12 @@ public class Player : BimboObject
         if(poly.Intersection(movement, size, out plpi) && plpi.DistSqr<lpi.DistSqr) { lpi=plpi; mini=i; }
       }
       if(mini==-1) break;
-      Vector diff = lpi.IP - pos;
-      if(diff.LengthSqr>1) Move(diff, count+1); // FIXME: with this, the parallel component gets added more than 1.0 times
+      if(lpi.DistSqr>1) Move(lpi.IP-pos, count+1); // FIXME: with this, the parallel component gets added more than 1.0 times
       // cancel out the perpendicular component of the velocity
       vel -= lpi.Normal * (vel.Length * lpi.Normal.DotProduct(vel.Normal)); 
       if(vel.LengthSqr/world.TimeDelta<0.1f) return new Vector(); // set small velocities to zero
     } while(++count<50);
+if(count>=50) throw new Exception("too many iterations");
 
     pos = movement.End;
     return vel;

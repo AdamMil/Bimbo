@@ -26,10 +26,40 @@ public class BimboAppWorld : Bimbo.World
 { public BimboAppWorld() { }
   public BimboAppWorld(string path) : base(path) { }
 
-  public override void Update(float timeDelta)
-  { base.Update(timeDelta);
-    Coin.AnimPos = Coin.Anim.Update(Coin.AnimPos, timeDelta);
+  protected override void OnLoad()
+  { if(writing) demo = System.IO.File.Open("c:/demo", System.IO.FileMode.OpenOrCreate);
+    else demo = System.IO.File.Open("c:/demo", System.IO.FileMode.Open, System.IO.FileAccess.Read);
   }
+
+  protected override void OnUnload()
+  { if(demo!=null) demo.Close();
+  }
+
+  public override void Update(float timeDelta)
+  { if(writing)
+    { GameLib.IO.IOH.WriteFloat(demo, timeDelta);
+      demo.WriteByte(GameLib.Input.Keyboard.Pressed(GameLib.Input.Key.Left) ? (byte)1 : (byte)0);
+      demo.WriteByte(GameLib.Input.Keyboard.Pressed(GameLib.Input.Key.Right) ? (byte)1 : (byte)0);
+      demo.WriteByte(GameLib.Input.Keyboard.Pressed(GameLib.Input.Key.Up) ? (byte)1 : (byte)0);
+    }
+    else
+    { if(demo.Position==demo.Length) return;
+      timeDelta = GameLib.IO.IOH.ReadFloat(demo);
+      GameLib.Input.Keyboard.Press(GameLib.Input.Key.Left, demo.ReadByte()!=0);
+      GameLib.Input.Keyboard.Press(GameLib.Input.Key.Right, demo.ReadByte()!=0);
+      GameLib.Input.Keyboard.Press(GameLib.Input.Key.Up, demo.ReadByte()!=0);
+      int stop=114;
+      if(frame==stop) frame=stop;
+    }
+    try { base.Update(timeDelta); }
+    catch(System.Exception e) { demo.Close(); throw e; }
+    Coin.AnimPos = Coin.Anim.Update(Coin.AnimPos, timeDelta);
+    frame++;
+  }
+  
+  System.IO.Stream demo;
+  int frame;
+  bool writing=true;
 }
 
 } // namespace BimboApp
