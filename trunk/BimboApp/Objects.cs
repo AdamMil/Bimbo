@@ -43,7 +43,7 @@ public class Player : BimboObject
 { public Player(List list) : base(list)
   { sprite = Sprite.Load("swarmie.png");
     light = new Light();
-    light.CreateNgon(600, 16);
+    light.CreateNgon(300, 16);
     me=this;
   }
 
@@ -79,7 +79,7 @@ public class Player : BimboObject
     vel = Move(vel*world.TimeDelta, 0) / world.TimeDelta;
   }
 
-  public Vector Move(Vector vel, int initialCount)
+  Vector Move(Vector vel, int initialCount)
   { World.LinePolyIntersection lpi = new World.LinePolyIntersection(), plpi;
     Line movement;
     int size = sprite.Width/2, count=initialCount, mini;
@@ -92,11 +92,11 @@ public class Player : BimboObject
       }
       if(mini==-1) break;
       if(lpi.DistSqr>1) Move(lpi.IP-pos, count+1); // FIXME: with this, the parallel component gets added more than 1.0 times
-      // cancel out the perpendicular component of the velocity
-      vel -= lpi.Normal * (vel.Length * lpi.Normal.DotProduct(vel.Normal)); 
+      // cancel out the perpendicular component of the velocity (multiply by 1.001 to make sure it doesn't intersect next iteration)
+      vel -= lpi.Normal * (vel.Length * lpi.Normal.DotProduct(vel.Normal) * 1.001f);
       if(vel.LengthSqr/world.TimeDelta<0.1f) return new Vector(); // set small velocities to zero
-    } while(++count<50);
-if(count>=50) throw new Exception("too many iterations");
+    } while(++count<10);
+if(count>=10) throw new Exception("too many iterations");
 
     pos = movement.End;
     return vel;
