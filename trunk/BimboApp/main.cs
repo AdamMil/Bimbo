@@ -31,14 +31,7 @@ class App
     Engine.WindowTitle = "Bimbo Test";
     Engine.SetMode(800, 600);
     
-    Vector v = new Vector(1, 0);
-    v = new Vector(-1, 0);
-    v = new Vector(0, 1);
-    v = new Vector(0, -1);
-    v = new Vector(-1, -1);
-    v = new Vector(1, 1);
-
-    World world = new BimboAppWorld(@"C:\code\Smarm\data\level1");
+    World world = new BimboAppWorld(@"C:\code\Smarm\data\test");
     world.Camera.SetDestination(Bimbo.Objects.Player.me);
     Engine.AddWorld(world);
 
