@@ -43,7 +43,7 @@ public class Player : BimboObject
 { public Player(List list) : base(list)
   { sprite = Sprite.Load("swarmie.png");
     light = new Light();
-    light.CreateNgon(300, 16);
+    light.CreateNgon(600, 16);
     me=this;
   }
 
