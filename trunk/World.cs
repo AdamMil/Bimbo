@@ -76,9 +76,8 @@ public class World
     // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
     // if no collision occurred
     public bool Intersection(Line line, float size, out LinePolyIntersection lpi)
-    { if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit;
-
-      const float epsilon = 0.001f; // FIXME: way too big!
+    { if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit; // FIXME: sometimes these disagree
+      const float epsilon = 0.00001f;
 
       unsafe
       { Line* lines = stackalloc Line[poly.Length];
@@ -92,26 +91,30 @@ public class World
           sdists[i] = lines[i].WhichSide(line.Start);
           edists[i] = lines[i].WhichSide(end);
         }
+
+bool inside=true;
+for(int i=0; i<len; i++) if(sdists[i]>-epsilon) {inside=false; break; }
+if(inside) inside=false; //throw new Exception("gah!");
         for(int i=0; i<len; i++)
         { float sd = sdists[i], ed = edists[i];
           if(sd<epsilon && sd>-epsilon) // we might already be touching it
           { for(int j=0; j<len; j++) if(j!=i && sdists[j]>=epsilon) goto nope;
-            for(int j=0; j<len; j++) if(edists[j]>-epsilon) goto nothit; // FIXNOW: this isn't good enough
+            for(int j=0; j<len; j++) if(edists[j]>-epsilon) goto nothit;
             lpi.IP   = line.Start;
             lpi.Line = lines[i];
             lpi.Normal = normals[i];
             lpi.DistSqr = 0;
             return true;
           }
-          nope:
           if(sd>=epsilon && ed<=-epsilon) // 'line' straddles a clipping line
-          { ip = line.LineIntersection(lines[i]);
+          { ip = line.Start + line.Vector/((sd-ed)*sd);// + normals[i]*0.5f;//line.LineIntersection(lines[i]);
             float dist = ip.DistanceSquaredTo(line.Start);
             if(dist<mind) { mini=i; mind=dist; }
           }
+          nope:;
         }
         if(mini==-1) goto nothit;
-        for(int i=0; i<len; i++) if(i!=mini && lines[i].WhichSide(ip)>0) goto nothit;
+        for(int i=0; i<len; i++) if(i!=mini && lines[i].WhichSide(ip)>epsilon) goto nothit;
         lpi.IP      = ip;
         lpi.Line    = lines[mini];
         lpi.Normal  = normals[mini];
@@ -120,6 +123,9 @@ public class World
       }
       
       nothit:
+bool ins=true;
+for(int i=0; i<poly.Length; i++) if(GetInflatedEdge(i, size).WhichSide(line.End)>-epsilon) {ins=false; break; }
+if(ins) ins=false; //throw new Exception("gah!");
       unsafe { fixed(LinePolyIntersection* p=&lpi) { } } // pacify the compiler (no, we didn't assign to lpi)
       return false;
     }
@@ -258,7 +264,7 @@ public class World
           SD.Rectangle brect = WorldToPart(poly.Poly.GetBounds()); // TODO: maybe replace next 3 lines with foreach, using iterator??
           for(int y=brect.Y; y<brect.Bottom; y++)
             for(int x=brect.X; x<brect.Right; x++)
-              MakePartition(x, y).Polys.Add(poly);
+              MakePartition(x, y).Polys.Add(poly); // FIXME: this adds to too many partitions
         }
       }
       else if(child.Name=="layer") // FIXME: assumes layers are in order
@@ -293,7 +299,7 @@ public class World
         if(opt!=null) levelName = opt.GetString(0);
       }
 
-    fsfile = new FSFile(path+"images.fsf");
+    fsfile = new FSFile(path+"images.fsf", System.IO.FileAccess.Read);
     basePath = path;
     
     OnLoad();
@@ -378,11 +384,10 @@ public class World
           if(objs!=null)
             for(; part.ObjIndex<objs.Count; part.ObjIndex++)
             { BimboObject obj = (BimboObject)objs[part.ObjIndex];
-              if(obj.Layer!=layer) goto doneWithObjs;
+              if(obj.Layer!=layer) break;
               obj.Render();
             }
         }
-      doneWithObjs:;
 
       GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
       if(layer==numLayers-1)
@@ -392,7 +397,7 @@ public class World
             if(part==null) continue;
             ArrayList polys = part.RawPolys;
             if(polys!=null)
-              foreach(Polygon poly in polys)
+            { foreach(Polygon poly in polys)
               { GL.glColor(16, SD.Color.Magenta);
                 GL.glBegin(GL.GL_POLYGON);
                 for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
@@ -402,6 +407,18 @@ public class World
                 for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
                 GL.glEnd();
               }
+              GL.glColor(32, SD.Color.LightGreen);
+              
+              foreach(Polygon poly in polys)
+              { Rectangle rect = poly.Bounds.Inflated(16, 16);
+                GL.glBegin(GL.GL_LINE_LOOP);
+                  GL.glVertex2f(rect.X, rect.Y);
+                  GL.glVertex2f(rect.Right, rect.Y);
+                  GL.glVertex2f(rect.Right, rect.Bottom);
+                  GL.glVertex2f(rect.X, rect.Bottom);
+                GL.glEnd();
+              }
+            }
           }
     }
     

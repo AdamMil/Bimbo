@@ -60,38 +60,43 @@ public class Player : BimboObject
   public void Gravity() { AddForce(world.Gravity*(Mass*world.TimeDelta)); } // add gravity 
 
   // try to move according to the velocity. do collision detection with walls and other objects.
-  public void Move() { vel = Move(vel, 0); }
-  public Vector Move(Vector vel, int count)
-  { SD.Rectangle parts = World.WorldToPart(Bounds);
-
-    Line movement = new Line(pos, vel*world.TimeDelta);
-    int size = sprite.Width/2;
-
-    if(count==10) count=10;
-
-    for(int y=parts.Y; y<parts.Bottom; y++)
+  public void Move()
+  { partPolys.Clear();
+    SD.Rectangle parts = World.WorldToPart(Bounds);
+    for(int y=parts.Y; y<parts.Bottom; y++) // add all the unique polygons to partPolys
       for(int x=parts.X; x<parts.Right; x++)
       { World.Partition part = world.GetPartition(x, y);
         if(part==null) continue;
         ArrayList polys = part.RawPolys;
         if(polys==null) continue;
-        foreach(World.Polygon poly in polys)
-        { World.LinePolyIntersection lpi;
-          if(poly.Intersection(movement, size, out lpi))
-          { Vector rvel = lpi.Line.Vector; // we want to cancel out the component of the velocity perpendicular
-            rvel.Y = -rvel.Y;              // to the line we hit. the Vector.Angle property assumes standard
-            float angle = rvel.Angle;      // cartesian coordinates (Y increases upwards), so we invert Y before
-            rvel = vel.Rotated(-angle);    // getting the angle. then we rotate the velocity so it's as though the
-            rvel.X = 0;                    // line we hit was horizontal, get only the perpendicular component (Y),
-            vel -= rvel.Rotated(angle);    // rotate it back, and then subtract it from the velocity.
-            float frac = 1-(float)Math.Sqrt(lpi.DistSqr)/movement.Length;
-            pos = lpi.IP; // however, the point may not have hit the polygon immediately, so we move along the
-                          // old vector to the intersection point before continuing with the new velocity
-            if(frac<0.01) return vel; // we ignore the remaining velocity if it's sufficiently small
-            return Move(vel*frac, count+1);
+        foreach(World.Polygon poly in polys) if(!partPolys.Contains(poly)) partPolys.Add(poly);
+      }
+    vel = Move(vel*world.TimeDelta, 0) / world.TimeDelta;
+  }
+
+  public Vector Move(Vector vel, int count)
+  { int size = sprite.Width/2;
+
+    restart:
+    Line movement = new Line(pos, vel);
+    if(count==5) return vel; // this should be safe to remove, but i'd rather split up a big batch across
+    for(int i=0; i<partPolys.Count; i++)
+    { World.Polygon poly = (World.Polygon)partPolys[i];
+      World.LinePolyIntersection lpi;
+      if(poly.Intersection(movement, size, out lpi))
+      { // cancel out the perpendicular component of the velocity
+        vel -= lpi.Normal * (vel.Length * lpi.Normal.DotProduct(vel.Normal)); 
+        if(vel.LengthSqr/world.TimeDelta<0.1f) return new Vector(); // set small velocities to zero
+        if(lpi.DistSqr>=1) // if the intersection was not too close to the start point, handle the remaining part
+        { float frac = 1-(float)Math.Sqrt(lpi.DistSqr)/movement.Length;
+          if(frac>=0) // you can't trust floating point...
+          { vel *= frac;                              // we move along the old vector to the intersection
+            if(frac>0.01f) Move(lpi.IP-pos, count+1); // point before continuing with the new velocity
           }
         }
+        count++; goto restart;
       }
+    }
 
     pos = movement.End;
     return vel;
@@ -156,6 +161,7 @@ public class Player : BimboObject
   Sprite sprite;
 
   public static Player me;
+  static ArrayList partPolys = new ArrayList();
 }
 
 }
