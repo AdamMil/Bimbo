@@ -40,7 +40,12 @@ public class Coin : BimboObject
 }
 
 public class Player : BimboObject
-{ public Player(List list) : base(list) { sprite = Sprite.Load("swarmie.png"); me=this; }
+{ public Player(List list) : base(list)
+  { sprite = Sprite.Load("swarmie.png");
+    light = new Light();
+    light.CreateNgon(300, 16);
+    me=this;
+  }
 
   public Rectangle Bounds
   { get
@@ -115,6 +120,21 @@ if(count>=50) throw new Exception("too many iterations");
       GL.glVertex2f(pos.X, pos.Y);
       GL.glVertex2f(pos.X+vel.X, pos.Y+vel.Y);
     GL.glEnd();
+
+    light.Recalculate(world, pos);
+    for(int npoly=0; npoly<light.LitLength; npoly++)
+    { Polygon poly = light.LitShape[npoly];
+      GL.glBegin(GL.GL_POLYGON);
+      for(int i=0; i<poly.Length; i++)
+      { GL.glColor4f(1, 1, 1, (300-poly[i].DistanceTo(poly[0]))/300/4);
+        GL.glVertex2f(poly[i].X, poly[i].Y);
+      }
+      GL.glEnd();
+      /*GL.glColor(SD.Color.Red);
+      GL.glBegin(GL.GL_LINE_LOOP);
+      for(int i=0; i<poly.Length; i++) GL.glVertex2f(poly[i].X, poly[i].Y);
+      GL.glEnd();*/
+    }
   }
 
   public override void Update()
@@ -139,7 +159,7 @@ if(count>=50) throw new Exception("too many iterations");
 
     vel += force/Mass; force = new Vector(); // apply all the forces on the object
     if(vel.LengthSqr > MaxSpeed*MaxSpeed) vel.Normalize(MaxSpeed); // limit to maximum speed
-    if(vel.Y>=0 && Keyboard.Pressed(Key.Up)) vel.Y -= 250;
+    if(Keyboard.PressedRel(Key.Up)) vel.Y -= 250;
     
     Move(); // attempt to move
   }
@@ -154,6 +174,7 @@ if(count>=50) throw new Exception("too many iterations");
   protected float Mass=100, MaxSpeed=3000, MaxWalkingSpeed=600, StopSpeed=16;
 
   Sprite sprite;
+  Light light;
 
   public static Player me;
   static ArrayList partPolys = new ArrayList();

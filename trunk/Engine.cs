@@ -135,7 +135,7 @@ public sealed class Engine
     GL.glEnable(GL.GL_TEXTURE_2D);
     GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
     GL.glHint(GL.GL_PERSPECTIVE_CORRECTION_HINT, GL.GL_FASTEST);
-    GL.glShadeModel(GL.GL_FLAT);
+    GL.glShadeModel(GL.GL_SMOOTH);
 
     GL.glViewport(0, 0, width, height);
     GLU.gluOrtho2D(0, width, height, 0);
