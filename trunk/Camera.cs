@@ -23,12 +23,20 @@ using GameLib.Mathematics.TwoD;
 namespace Bimbo
 {
 
+// TODO: add support for rotation?
 public class Camera
 { internal Camera() { }
 
   public Point Destination
   { get { return tracking==null ? dpoint : tracking.Pos; }
     set { tracking=null; dpoint=value; }
+  }
+
+  public System.Drawing.Point TopLeft
+  { get
+    { return new System.Drawing.Point((int)Math.Round(Current.X)-Engine.ScreenSize.Width/2,
+                                      (int)Math.Round(Current.Y)-Engine.ScreenSize.Height/2);
+    }
   }
 
   public void Push(Point pt)

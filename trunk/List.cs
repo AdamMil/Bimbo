@@ -92,11 +92,11 @@ public class List : IEnumerable
 
   public static object ListToObject(List list, Type destType)
   { if(destType==typeof(System.Drawing.Point)) return list.ToPoint();
-    if(destType==typeof(System.Drawing.Color)) return list.ToColor();
     if(destType==typeof(GameLib.Mathematics.TwoD.Point))
       return new GameLib.Mathematics.TwoD.Point((float)list.GetFloat(0), (float)list.GetFloat(1));
     if(destType==typeof(GameLib.Mathematics.TwoD.Vector))
       return new GameLib.Mathematics.TwoD.Vector((float)list.GetFloat(0), (float)list.GetFloat(1));
+    if(destType==typeof(System.Drawing.Color)) return list.ToColor();
     return Convert.ChangeType(list[0], destType);
   }
 
