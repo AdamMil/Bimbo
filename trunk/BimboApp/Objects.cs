@@ -126,7 +126,7 @@ if(count>=50) throw new Exception("too many iterations");
     { Polygon poly = light.LitShape[npoly];
       GL.glBegin(GL.GL_POLYGON);
       for(int i=0; i<poly.Length; i++)
-      { GL.glColor4f(1, 1, 1, (300-poly[i].DistanceTo(poly[0]))/300/4);
+      { GL.glColor4f(1, 1, 1, .25f*light.Falloff(poly[i]));
         GL.glVertex2f(poly[i].X, poly[i].Y);
       }
       GL.glEnd();
