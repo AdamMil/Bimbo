@@ -103,9 +103,17 @@ public class World
   #endregion
 
   public SD.Color BackColor { get { return bgColor; } }
-  public Camera Camera { get { return cam; } }
+  public Camera Camera
+  { get { return cam; }
+    set
+    { if(value==null) throw new ArgumentNullException("Camera");
+      cam = value;
+    }
+  }
   public int Frame { get { return frame; } }
+  public Vector Gravity { get { return new Vector(0, 250); } }
   public string Name { get { return levelName; } }
+  public float Time { get { return time; } }
   public float TimeDelta { get { return timeDelta; } }
 
   public Partition GetPartition(int x, int y) { return GetPartition(new Point(x, y)); }
@@ -154,7 +162,8 @@ public class World
         GameLib.Mathematics.TwoD.Polygon cpoly = new GameLib.Mathematics.TwoD.Polygon();
         foreach(List pt in child["points"]) cpoly.AddPoint(pt.ToPoint());
         foreach(GameLib.Mathematics.TwoD.Polygon p in cpoly.SplitIntoConvexPolygons())
-        { Polygon poly = new Polygon(type, p);
+        { if(!p.IsClockwise()) p.Reverse();
+          Polygon poly = new Polygon(type, p);
           SD.Rectangle brect = WorldToPart(poly.Poly.GetBounds()); // TODO: maybe replace next 3 lines with foreach, using iterator??
           for(int y=brect.Y; y<brect.Bottom; y++)
             for(int x=brect.X; x<brect.Right; x++)
@@ -217,7 +226,11 @@ public class World
   
   public virtual void Render()
   { Point topLeft = Camera.TopLeft;
-    SD.Rectangle parts = WorldToPart(new Rectangle(topLeft.X, topLeft.Y, Engine.ScreenSize.Width, Engine.ScreenSize.Height));
+    SD.Rectangle parts = WorldToPart(new Rectangle(topLeft.X, topLeft.Y,
+                                                   Engine.ScreenSize.Width, Engine.ScreenSize.Height));
+
+    GL.glPushMatrix();
+    GL.glTranslatef(-topLeft.X, -topLeft.Y, 0);
 
     for(int y=parts.Y; y<parts.Bottom; y++)
       for(int x=parts.X; x<parts.Right; x++)
@@ -226,9 +239,9 @@ public class World
       }
 
     for(int layer=0; layer<numLayers; layer++)
-    { float yo, xo, pxo, pyo=parts.Y*PartHeight - topLeft.Y;
+    { float yo, xo, pxo, pyo=parts.Y*PartHeight;
       for(int y=parts.Y; y<parts.Bottom; pyo+=PartHeight,y++)
-      { pxo=parts.X*PartWidth - topLeft.X;
+      { pxo=parts.X*PartWidth;
         for(int x=parts.X; x<parts.Right; pxo+=PartWidth,x++)
         { Partition part = GetPartition(x, y);
           if(part==null) continue;
@@ -279,7 +292,29 @@ public class World
             }
         }
       doneWithObjs:;
+
+      GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
+      if(layer==numLayers-1)
+        for(int y=parts.Y; y<parts.Bottom; y++)
+          for(int x=parts.X; x<parts.Right; x++)
+          { Partition part = GetPartition(x, y);
+            if(part==null) continue;
+            ArrayList polys = part.RawPolys;
+            if(polys!=null)
+              foreach(Polygon poly in polys)
+              { GL.glColor(16, SD.Color.Magenta);
+                GL.glBegin(GL.GL_POLYGON);
+                for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
+                GL.glEnd();
+                GL.glColor(SD.Color.Magenta);
+                GL.glBegin(GL.GL_LINE_LOOP);
+                for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
+                GL.glEnd();
+              }
+          }
     }
+    
+    GL.glPopMatrix();
   }
 
   public SD.Point TileOffset(SD.Point coord) // assumes tile coordinates are never negative
@@ -289,7 +324,8 @@ public class World
   }
 
   public virtual void Update(float timeDelta)
-  { this.timeDelta = timeDelta;
+  { time += timeDelta;
+    this.timeDelta = timeDelta;
     cam.Update(timeDelta);
 
     ArrayList moved = null;
@@ -334,6 +370,7 @@ public class World
     bgColor   = SD.Color.Black;
     levelName = string.Empty;
     numLayers = frame = 0;
+    time      = 0;
   }
 
   public void UnloadOldTiles()
@@ -351,19 +388,25 @@ public class World
   { return new SD.Point((int)Math.Floor(coord.X/PartWidth), (int)Math.Floor(coord.Y/PartHeight));
   }
 
+  public static SD.Rectangle WorldToPart(Point p1, Point p2)
+  { Point topLeft = new Point(Math.Min(p1.X, p2.X), Math.Min(p1.Y, p2.Y));
+    return WorldToPart(new Rectangle(topLeft.X, topLeft.Y, Math.Max(p1.X, p2.X)-topLeft.X,
+                                     Math.Max(p1.Y, p2.Y)-topLeft.Y));
+  }
+
   public static SD.Rectangle WorldToPart(Rectangle rect)
   { return new SD.Rectangle((int)Math.Floor(rect.X/PartWidth), (int)Math.Floor(rect.Y/PartHeight),
                             (int)Math.Ceiling((rect.Width+(PartWidth-1))/PartWidth),
                             (int)Math.Ceiling((rect.Height+(PartHeight-1))/PartHeight));
   }
-
+  
   Hashtable parts=new Hashtable(), tiles=new Hashtable();
   LinkedList mru=new LinkedList();
   FSFile  fsfile;
   Camera cam = new Camera();
   string levelName, basePath;
   SD.Color bgColor;
-  float timeDelta;
+  float time, timeDelta;
   int numLayers, frame;
 }
 
