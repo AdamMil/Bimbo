@@ -43,7 +43,7 @@ public class World
   { public Point  IP;
     public Line   Line;
     public Vector Normal;
-    public float  DistSqr;
+    public double DistSqr;
   }
 
   public class Polygon
@@ -65,7 +65,7 @@ public class World
     public PolyType Type { get { return type; } }
 
     // gets the specified edge of the polygon, assuming the polygon has been inflated by 'size'
-    public Line GetInflatedEdge(int edge, float size)
+    public Line GetInflatedEdge(int edge, double size)
     { Line line = poly.GetEdge(edge);
       line.Start += normals[edge+4]*size;
       return line;
@@ -73,16 +73,16 @@ public class World
 
     // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
     // if no collision occurred
-    public bool Intersection(Line line, float size, out LinePolyIntersection lpi)
-    { const float epsilon = 0.000001f;
+    public bool Intersection(Line line, double size, out LinePolyIntersection lpi)
+    { const double epsilon = 0.000001f;
 
       unsafe
       { int len=poly.Length+4, mini=-1;
         Line* lines = stackalloc Line[len];
-        float* sdists = stackalloc float[len];
-        float* edists = stackalloc float[len];
+        double* sdists = stackalloc double[len];
+        double* edists = stackalloc double[len];
         Point end = line.End, ip = new Point();
-        float mind = float.MaxValue;
+        double mind = double.MaxValue;
 
         // first check against the bounding box
         lines[0] = new Line(topLeft.X, topLeft.Y-size, 1, 0);
@@ -106,10 +106,10 @@ for(int i=0; i<len; i++) if(sdists[i]>=epsilon) ins=false;
 if(ins==true) throw new Exception("bad position"); // this should never happen!
 
         for(int i=0; i<len; i++)
-        { float sd = sdists[i], ed = edists[i];
+        { double sd = sdists[i], ed = edists[i];
           if(sd>=epsilon && ed<=-epsilon) // 'line' straddles a clipping line
           { Point pip = line.Start + line.Vector*(sd/(sd-ed));
-            float dist = pip.DistanceSquaredTo(line.Start);
+            double dist = pip.DistanceSquaredTo(line.Start);
             if(dist<mind)
             { for(int j=0; j<len; j++) if(j!=i && normals[j].DotProduct(pip - lines[j].Start)>epsilon) goto nope;
               ip=pip; mini=i; mind=dist;
@@ -142,8 +142,8 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
       normals[2] = new Vector(0, 1);
       normals[3] = new Vector(-1, 0);
       for(int i=0; i<poly.Length; i++) normals[i+4] = poly.GetEdge(i).Vector.CrossVector.Normal;
-      topLeft = new Point(float.MaxValue, float.MaxValue);
-      btmRight = new Point(float.MinValue, float.MinValue);
+      topLeft = new Point(double.MaxValue, double.MaxValue);
+      btmRight = new Point(double.MinValue, double.MinValue);
       for(int i=0; i<poly.Length; i++)
       { if(poly[i].X<topLeft.X)  topLeft.X  = poly[i].X;
         if(poly[i].X>btmRight.X) btmRight.X = poly[i].X;
@@ -226,8 +226,8 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
   public int Frame { get { return frame; } }
   public Vector Gravity { get { return new Vector(0, 250); } }
   public string Name { get { return levelName; } }
-  public float Time { get { return time; } }
-  public float TimeDelta { get { return timeDelta; } }
+  public double Time { get { return time; } }
+  public double TimeDelta { get { return timeDelta; } }
 
   public Partition GetPartition(int x, int y) { return GetPartition(new Point(x, y)); }
   public Partition GetPartition(Point coord) { return GetPartition(coord.ToPoint()); }
@@ -343,7 +343,7 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
                                                    Engine.ScreenSize.Width, Engine.ScreenSize.Height));
 
     GL.glPushMatrix();
-    GL.glTranslatef(-topLeft.X, -topLeft.Y, 0);
+    GL.glTranslated(-topLeft.X, -topLeft.Y, 0);
 
     for(int y=parts.Y; y<parts.Bottom; y++)
       for(int x=parts.X; x<parts.Right; x++)
@@ -352,7 +352,7 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
       }
 
     for(int layer=0; layer<numLayers; layer++)
-    { float yo, xo, pxo, pyo=parts.Y*PartHeight;
+    { double yo, xo, pxo, pyo=parts.Y*PartHeight;
       for(int y=parts.Y; y<parts.Bottom; pyo+=PartHeight,y++)
       { pxo=parts.X*PartWidth;
         for(int x=parts.X; x<parts.Right; pxo+=PartWidth,x++)
@@ -370,20 +370,20 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
                 { GL.glColor(SD.Color.White);
                   GetTexture(tile.Texture).Bind();
                   GL.glBegin(GL.GL_QUADS);
-                    GL.glTexCoord2f(0, 0); GL.glVertex2f(xo, yo);
-                    GL.glTexCoord2f(1, 0); GL.glVertex2f(xo+BlockWidth, yo);
-                    GL.glTexCoord2f(1, 1); GL.glVertex2f(xo+BlockWidth, yo+BlockHeight);
-                    GL.glTexCoord2f(0, 1); GL.glVertex2f(xo, yo+BlockHeight);
+                    GL.glTexCoord2f(0, 0); GL.glVertex2d(xo, yo);
+                    GL.glTexCoord2f(1, 0); GL.glVertex2d(xo+BlockWidth, yo);
+                    GL.glTexCoord2f(1, 1); GL.glVertex2d(xo+BlockWidth, yo+BlockHeight);
+                    GL.glTexCoord2f(0, 1); GL.glVertex2d(xo, yo+BlockHeight);
                   GL.glEnd();
                 }
                 else if(tile.Color.A!=0)
                 { GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
                   GL.glColor(tile.Color);
                   GL.glBegin(GL.GL_QUADS);
-                    GL.glVertex2f(xo, yo);
-                    GL.glVertex2f(xo+BlockWidth, yo);
-                    GL.glVertex2f(xo+BlockWidth, yo+BlockHeight);
-                    GL.glVertex2f(xo, yo+BlockHeight);
+                    GL.glVertex2d(xo, yo);
+                    GL.glVertex2d(xo+BlockWidth, yo);
+                    GL.glVertex2d(xo+BlockWidth, yo+BlockHeight);
+                    GL.glVertex2d(xo, yo+BlockHeight);
                   GL.glEnd();
                 }
               }
@@ -416,11 +416,11 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
             { foreach(Polygon poly in polys)
               { /*GL.glColor(16, SD.Color.Magenta);
                 GL.glBegin(GL.GL_POLYGON);
-                for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
+                for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2d(poly.Poly[i].X, poly.Poly[i].Y);
                 GL.glEnd();*/
                 GL.glColor(SD.Color.Magenta);
                 GL.glBegin(GL.GL_LINE_LOOP);
-                for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
+                for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2d(poly.Poly[i].X, poly.Poly[i].Y);
                 GL.glEnd();
               }
               GL.glColor(32, SD.Color.LightGreen);
@@ -428,10 +428,10 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
               foreach(Polygon poly in polys)
               { Rectangle rect = poly.Bounds.Inflated(16, 16);
                 GL.glBegin(GL.GL_LINE_LOOP);
-                  GL.glVertex2f(rect.X, rect.Y);
-                  GL.glVertex2f(rect.Right, rect.Y);
-                  GL.glVertex2f(rect.Right, rect.Bottom);
-                  GL.glVertex2f(rect.X, rect.Bottom);
+                  GL.glVertex2d(rect.X, rect.Y);
+                  GL.glVertex2d(rect.Right, rect.Y);
+                  GL.glVertex2d(rect.Right, rect.Bottom);
+                  GL.glVertex2d(rect.X, rect.Bottom);
                 GL.glEnd();
               }
             }
@@ -447,7 +447,7 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
     return coord;
   }
 
-  public virtual void Update(float timeDelta)
+  public virtual void Update(double timeDelta)
   { time += timeDelta;
     this.timeDelta = timeDelta;
     cam.Update(timeDelta);
@@ -529,7 +529,7 @@ if(ins==true) throw new Exception("intersection point is inside polygon!");
   Camera cam = new Camera();
   string levelName, basePath;
   SD.Color bgColor;
-  float time, timeDelta;
+  double time, timeDelta;
   int numLayers, frame;
 }
 

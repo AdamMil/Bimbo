@@ -38,10 +38,10 @@ public class Animation
   public Animation(Chunk chunk, LoopType looping) { AddChunk(chunk); loop = looping; }
 
   public struct Chunk
-  { public Chunk(int frame, float delay) { Start=frame; Length=1; Delay=delay; }
-    public Chunk(int start, int length, float delay) { Start=start; Length=length; Delay=delay; }
+  { public Chunk(int frame, double delay) { Start=frame; Length=1; Delay=delay; }
+    public Chunk(int start, int length, double delay) { Start=start; Length=length; Delay=delay; }
     public int Start, Length;
-    public float Delay;
+    public double Delay;
   }
   
   public struct Position
@@ -49,7 +49,7 @@ public class Animation
 
     public int Chunk;
     public int Index;
-    public float Time;
+    public double Time;
     public bool Done, Reversing;
   }
 
@@ -71,7 +71,7 @@ public class Animation
   { return (chunks[pos.Chunk].Length<0 ? -pos.Index : pos.Index) + chunks[pos.Chunk].Start;
   }
 
-  public Position Update(Position pos, float timeDelta)
+  public Position Update(Position pos, double timeDelta)
   { if(length==0) return pos;
     pos.Time += timeDelta;
     while(pos.Time>=chunks[pos.Chunk].Delay)
@@ -122,16 +122,16 @@ public class Sprite
 
   public void Render(Point center, int frame)
   { if(frame<0 || frame>=frames) throw new ArgumentOutOfRangeException("frame");
-    float sx = center.X-width*0.5f, sy = center.Y-(float)texture.ImgHeight*0.5f;
+    double sx = center.X-width*0.5, sy = center.Y-texture.ImgHeight*0.5;
     double tx = frame*width/(double)texture.TexWidth, tx2 = width/(double)texture.TexWidth + tx;
     double th = texture.ImgHeight/(double)texture.TexHeight;
     GL.glColor(System.Drawing.Color.White);
     texture.Bind();
     GL.glBegin(GL.GL_QUADS);
-      GL.glTexCoord2d(tx,  0);  GL.glVertex2f(sx,       sy);
-      GL.glTexCoord2d(tx2, 0);  GL.glVertex2f(sx+width, sy);
-      GL.glTexCoord2d(tx2, th); GL.glVertex2f(sx+width, sy+texture.ImgHeight);
-      GL.glTexCoord2d(tx,  th); GL.glVertex2f(sx,       sy+texture.ImgHeight);
+      GL.glTexCoord2d(tx,  0);  GL.glVertex2d(sx,       sy);
+      GL.glTexCoord2d(tx2, 0);  GL.glVertex2d(sx+width, sy);
+      GL.glTexCoord2d(tx2, th); GL.glVertex2d(sx+width, sy+texture.ImgHeight);
+      GL.glTexCoord2d(tx,  th); GL.glVertex2d(sx,       sy+texture.ImgHeight);
     GL.glEnd();
   }
 

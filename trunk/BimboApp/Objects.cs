@@ -109,16 +109,16 @@ if(count>=10) throw new Exception("too many iterations");
     GL.glBindTexture(GL.GL_TEXTURE_2D, 0);
     GL.glColor(SD.Color.Red);
     GL.glBegin(GL.GL_LINE_LOOP);
-      GL.glVertex2f(pos.X-w, pos.Y-h);
-      GL.glVertex2f(pos.X+w, pos.Y-h);
-      GL.glVertex2f(pos.X+w, pos.Y+h);
-      GL.glVertex2f(pos.X-w, pos.Y+h);
+      GL.glVertex2d(pos.X-w, pos.Y-h);
+      GL.glVertex2d(pos.X+w, pos.Y-h);
+      GL.glVertex2d(pos.X+w, pos.Y+h);
+      GL.glVertex2d(pos.X-w, pos.Y+h);
     GL.glEnd();
     
     GL.glColor(SD.Color.White);
     GL.glBegin(GL.GL_LINES);
-      GL.glVertex2f(pos.X, pos.Y);
-      GL.glVertex2f(pos.X+vel.X, pos.Y+vel.Y);
+      GL.glVertex2d(pos.X, pos.Y);
+      GL.glVertex2d(pos.X+vel.X, pos.Y+vel.Y);
     GL.glEnd();
 
     light.Recalculate(world, pos);
@@ -126,8 +126,8 @@ if(count>=10) throw new Exception("too many iterations");
     { Polygon poly = light.LitShape[npoly];
       GL.glBegin(GL.GL_POLYGON);
       for(int i=0; i<poly.Length; i++)
-      { GL.glColor4f(1, 1, 1, .25f*light.Falloff(poly[i]));
-        GL.glVertex2f(poly[i].X, poly[i].Y);
+      { GL.glColor4d(1, 1, 1, .25f*light.Falloff(poly[i]));
+        GL.glVertex2d(poly[i].X, poly[i].Y);
       }
       GL.glEnd();
       /*GL.glColor(SD.Color.Red);
@@ -139,11 +139,11 @@ if(count>=10) throw new Exception("too many iterations");
 
   public override void Update()
   { Gravity();
-    float walk = WalkingAccel;
+    double walk = WalkingAccel;
 
     if(walk==0) Friction(); // if we're not walking, slow us down using friction
     else
-    { float vlen = vel.LengthSqr;
+    { double vlen = vel.LengthSqr;
       // if we're moving faster than our maximum speed or walking in a direction opposite our motion,
       // apply friction to slow us down
       if(vlen > MaxWalkingSpeed*MaxWalkingSpeed || Math.Abs(Math.Sign(vlen)-Math.Sign(walk))==2) Friction();
@@ -166,12 +166,12 @@ if(count>=10) throw new Exception("too many iterations");
   
   public Vector RightVector { get { return new Vector(1, 0); } }
 
-  public float WalkingAccel
+  public double WalkingAccel
   { get { return (Keyboard.Pressed(Key.Left)?-400:0) + (Keyboard.Pressed(Key.Right)?400:0); }
   }
 
   protected Vector force;
-  protected float Mass=100, MaxSpeed=3000, MaxWalkingSpeed=600, StopSpeed=16;
+  protected double Mass=100, MaxSpeed=3000, MaxWalkingSpeed=600, StopSpeed=16;
 
   Sprite sprite;
   Light light;

@@ -35,16 +35,16 @@ public class BimboAppWorld : Bimbo.World
   { if(demo!=null) demo.Close();
   }
 
-  public override void Update(float timeDelta)
+  public override void Update(double timeDelta)
   { if(writing)
-    { GameLib.IO.IOH.WriteFloat(demo, timeDelta);
+    { GameLib.IO.IOH.WriteDouble(demo, timeDelta);
       demo.WriteByte(GameLib.Input.Keyboard.Pressed(GameLib.Input.Key.Left) ? (byte)1 : (byte)0);
       demo.WriteByte(GameLib.Input.Keyboard.Pressed(GameLib.Input.Key.Right) ? (byte)1 : (byte)0);
       demo.WriteByte(GameLib.Input.Keyboard.Pressed(GameLib.Input.Key.Up) ? (byte)1 : (byte)0);
     }
     else
     { if(demo.Position==demo.Length) return;
-      timeDelta = GameLib.IO.IOH.ReadFloat(demo);
+      timeDelta = GameLib.IO.IOH.ReadDouble(demo);
       GameLib.Input.Keyboard.Press(GameLib.Input.Key.Left, demo.ReadByte()!=0);
       GameLib.Input.Keyboard.Press(GameLib.Input.Key.Right, demo.ReadByte()!=0);
       GameLib.Input.Keyboard.Press(GameLib.Input.Key.Up, demo.ReadByte()!=0);

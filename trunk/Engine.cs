@@ -78,11 +78,11 @@ public sealed class Engine
 
   public static void EventLoop() { EventLoop(null); }
   public static void EventLoop(EventProcedure eventproc)
-  { lastTime = (float)Timing.Seconds;
+  { lastTime = Timing.Seconds;
     while(true)
     { if(!ProcessEvents(eventproc, false)) break;
       if(world!=null)
-      { float time = (float)Timing.Seconds, delta = System.Math.Min(time-lastTime, 0.1f);
+      { double time = Timing.Seconds, delta = System.Math.Min(time-lastTime, 0.1f);
         lastTime = time;
         world.Update(delta);
         Render();
@@ -151,7 +151,7 @@ public sealed class Engine
   static System.Reflection.Assembly objAssem;
   static string title = "Bimbo App", defObjNS = "Bimbo.Objects", spritePath;
   static System.Drawing.Size size;
-  static float lastTime;
+  static double lastTime;
   static bool modeSet;
 }
 

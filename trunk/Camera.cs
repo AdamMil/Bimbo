@@ -51,9 +51,9 @@ public class Camera
 
   public Point Current;
 
-  internal void Update(float timeDelta)
+  internal void Update(double timeDelta)
   { Vector diff = Destination-Current;
-    float  len  = diff.LengthSqr;
+    double len  = diff.LengthSqr;
     if(len<=4 && tracking==null) Current=Destination;
     else if(len<=10000 && (tracking==null || tracking.Vel.LengthSqr<=100))
     { Current += diff * (timeDelta * 10);
