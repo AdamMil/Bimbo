@@ -74,29 +74,24 @@ public class Player : BimboObject
     vel = Move(vel*world.TimeDelta, 0) / world.TimeDelta;
   }
 
-  public Vector Move(Vector vel, int count)
-  { int size = sprite.Width/2;
+  public Vector Move(Vector vel, int initialCount)
+  { World.LinePolyIntersection lpi = new World.LinePolyIntersection(), plpi;
+    Line movement;
+    int size = sprite.Width/2, count=initialCount, mini;
 
-    restart:
-    Line movement = new Line(pos, vel);
-    if(count==5) return vel; // this should be safe to remove, but i'd rather split up a big batch across
-    for(int i=0; i<partPolys.Count; i++)
-    { World.Polygon poly = (World.Polygon)partPolys[i];
-      World.LinePolyIntersection lpi;
-      if(poly.Intersection(movement, size, out lpi))
-      { // cancel out the perpendicular component of the velocity
-        vel -= lpi.Normal * (vel.Length * lpi.Normal.DotProduct(vel.Normal)); 
-        if(vel.LengthSqr/world.TimeDelta<0.1f) return new Vector(); // set small velocities to zero
-        if(lpi.DistSqr>=1) // if the intersection was not too close to the start point, handle the remaining part
-        { float frac = 1-(float)Math.Sqrt(lpi.DistSqr)/movement.Length;
-          if(frac>=0) // you can't trust floating point...
-          { vel *= frac;                              // we move along the old vector to the intersection
-            if(frac>0.01f) Move(lpi.IP-pos, count+1); // point before continuing with the new velocity
-          }
-        }
-        count++; goto restart;
+    do
+    { movement=new Line(pos, vel); mini=-1; lpi.DistSqr=float.MaxValue;
+      for(int i=0; i<partPolys.Count; i++)
+      { World.Polygon poly = (World.Polygon)partPolys[i];
+        if(poly.Intersection(movement, size, out plpi) && plpi.DistSqr<lpi.DistSqr) { lpi=plpi; mini=i; }
       }
-    }
+      if(mini==-1) break;
+      Vector diff = lpi.IP - pos;
+      if(diff.LengthSqr>1) Move(diff, count+1); // FIXME: with this, the parallel component gets added more than 1.0 times
+      // cancel out the perpendicular component of the velocity
+      vel -= lpi.Normal * (vel.Length * lpi.Normal.DotProduct(vel.Normal)); 
+      if(vel.LengthSqr/world.TimeDelta<0.1f) return new Vector(); // set small velocities to zero
+    } while(++count<50);
 
     pos = movement.End;
     return vel;
@@ -145,7 +140,7 @@ public class Player : BimboObject
     vel += force/Mass; force = new Vector(); // apply all the forces on the object
     if(vel.LengthSqr > MaxSpeed*MaxSpeed) vel.Normalize(MaxSpeed); // limit to maximum speed
     if(vel.Y>=0 && Keyboard.Pressed(Key.Up)) vel.Y -= 250;
-
+    
     Move(); // attempt to move
   }
   

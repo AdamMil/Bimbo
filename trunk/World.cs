@@ -76,8 +76,8 @@ public class World
     // Returns the point of intersection of 'line' with the polygon inflated by 'size', or Point.Invalid
     // if no collision occurred
     public bool Intersection(Line line, float size, out LinePolyIntersection lpi)
-    { if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit;
-      const float epsilon = 0.00001f;
+    { const float epsilon = 0.1f;
+      if(!line.Intersects(Bounds.Inflated(size, size))) goto nothit;
 
       unsafe
       { Line* lines = stackalloc Line[poly.Length];
@@ -88,14 +88,14 @@ public class World
         int mini = -1, len=poly.Length;
         for(int i=0; i<len; i++)
         { lines[i] = GetInflatedEdge(i, size); // inflate the polygon by 'size'
-          sdists[i] = lines[i].WhichSide(line.Start);
-          edists[i] = lines[i].WhichSide(end);
+          sdists[i] = normals[i].DotProduct(line.Start - lines[i].Start);
+          edists[i] = normals[i].DotProduct(end - lines[i].Start);
         }
 
         for(int i=0; i<len; i++)
         { float sd = sdists[i], ed = edists[i];
-          if(sd<epsilon && sd>-epsilon) // we might already be touching it
-          { for(int j=0; j<len; j++) if(j!=i && sdists[j]>=epsilon) goto nope;
+          if(sd<epsilon && sd>-epsilon) // this special case (we're already touching it) helps prevent buildup
+          { for(int j=0; j<len; j++) if(j!=i && sdists[j]>=epsilon) goto nope;  // of floating-point errors
             for(int j=0; j<len; j++) if(edists[j]>-epsilon) goto nothit;
             lpi.IP   = line.Start;
             lpi.Line = lines[i];
@@ -104,15 +104,17 @@ public class World
             return true;
           }
           if(sd>=epsilon && ed<=-epsilon) // 'line' straddles a clipping line
-          { ip = line.Start + line.Vector/((sd-ed)*sd);// + normals[i]*0.5f;//line.LineIntersection(lines[i]);
-            float dist = ip.DistanceSquaredTo(line.Start);
-            if(dist<mind) { mini=i; mind=dist; }
+          { Point pip = line.Start + line.Vector*(sd/(sd-ed));//line.LineIntersection(lines[i]);
+            float dist = pip.DistanceSquaredTo(line.Start);
+            if(dist<mind)
+            { for(int j=0; j<len; j++) if(j!=i && normals[j].DotProduct(pip - lines[j].Start)>epsilon) goto nope;
+              ip=pip; mini=i; mind=dist;
+            }
           }
           nope:;
         }
         if(mini==-1) goto nothit;
-        for(int i=0; i<len; i++) if(i!=mini && lines[i].WhichSide(ip)>epsilon) goto nothit;
-        lpi.IP      = ip;
+        lpi.IP      = ip + normals[mini]*0.5f;
         lpi.Line    = lines[mini];
         lpi.Normal  = normals[mini];
         lpi.DistSqr = mind;
@@ -392,10 +394,10 @@ public class World
             ArrayList polys = part.RawPolys;
             if(polys!=null)
             { foreach(Polygon poly in polys)
-              { GL.glColor(16, SD.Color.Magenta);
+              { /*GL.glColor(16, SD.Color.Magenta);
                 GL.glBegin(GL.GL_POLYGON);
                 for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
-                GL.glEnd();
+                GL.glEnd();*/
                 GL.glColor(SD.Color.Magenta);
                 GL.glBegin(GL.GL_LINE_LOOP);
                 for(int i=0; i<poly.Poly.Length; i++) GL.glVertex2f(poly.Poly[i].X, poly.Poly[i].Y);
