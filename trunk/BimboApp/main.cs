@@ -31,8 +31,9 @@ class App
     Engine.WindowTitle = "Bimbo Test";
     Engine.SetMode(800, 600);
     
-    World world = new BimboAppWorld(@"C:\code\Smarm\data\test");
+    World world = new BimboAppWorld(@"C:\code\Smarm\data\level1");
     world.Camera.SetDestination(Bimbo.Objects.Player.me);
+    world.Camera.Current = world.Camera.Destination;
     Engine.AddWorld(world);
 
     try { Engine.EventLoop(); }
