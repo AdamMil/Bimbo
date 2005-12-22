@@ -106,8 +106,8 @@ public sealed class Engine
       do
       { if(eventproc!=null && !eventproc(e)) return false;
         Input.ProcessEvent(e);
-        if(Keyboard.Pressed(Key.Escape) || e is QuitEvent) return false;
-        if(e is ExceptionEvent) throw ((ExceptionEvent)e).Exception;
+        if(Keyboard.Pressed(Key.Escape) || e.Type==EventType.Quit) return false;
+        if(e.Type==EventType.Exception) throw ((ExceptionEvent)e).Exception;
       } while((e=Events.NextEvent(0))!=null);
     return true;
   }
